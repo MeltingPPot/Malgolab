@@ -1,6 +1,8 @@
 import subprocess as sbs
 import tempfile 
+import time
 from pathlib import Path
+from .models import record_submission
 
 def compile_cpp(src_path, output_exe):
     """
@@ -16,8 +18,8 @@ def compile_cpp(src_path, output_exe):
         text=True        
     )
     if result.returncode != 0:
-        out_put = result.stderr.strip() or "未知编译错误"
-        raise RuntimeError(f"编译错误：\n {out_put}")
+        out_put = result.stderr.strip() or "UnknowError"
+        raise RuntimeError(f"CompileError\n {out_put}")
     
 def run_program(exe_path, input_path):
     '''
@@ -26,11 +28,12 @@ def run_program(exe_path, input_path):
     :param exe_path: Path 对象，可执行文件路径
     :param input_path: Path 对象，输入文件路径
     :raises RuntimeError: 如果超时或运行时错误
-    :return: 程序输出的字符串
+    :return: 程序输出的字符串以及运行时间
     '''
     with open(input_path, 'r') as f:
+        start = time.perf_counter()
         try:
-            result=sbs.run(
+            result = sbs.run(
                 [str(exe_path)],
                 stdin = f,
                 capture_output = True,
@@ -38,12 +41,13 @@ def run_program(exe_path, input_path):
                 timeout = 5
             )
         except sbs.TimeoutExpired:
-            raise RuntimeError("你TLE了！")
+            raise RuntimeError("TimeLimit Error！")
 
+    elapsed = (time.perf_counter() - start) * 1000  # 秒 → 毫秒
     if result.returncode != 0:
-        raise RuntimeError("你RE了!")
+        raise RuntimeError("RuntimeError!")
 
-    return result.stdout 
+    return result.stdout, elapsed
 
 def compare_outputs(out, ans, ignore_whitespace=True):
     """
@@ -59,13 +63,14 @@ def compare_outputs(out, ans, ignore_whitespace=True):
         ans = '\n'.join(line.rstrip() for line in ans.splitlines()).strip()
     return out==ans
 
-def judge_one(src_file, input_file, answer_file):
+def judge_one(src_file, input_file, answer_file, problem_id=None):
     """
     judge_one 的 Docstring
     测评单个测试点
     :param src_file: Path 对象，解题代码文件路径
     :param input_file: Path 对象，输入文件路径
     :param answer_file: Path 对象，答案文件路径
+    :param problem_id: 题目ID（如果提供，则记录提交结果）
     """
     temp_dir = Path("data/temp/judge_runs")
     temp_dir.mkdir(parents=True, exist_ok=True)
@@ -76,13 +81,23 @@ def judge_one(src_file, input_file, answer_file):
         #         return False, "你CE了！"
         try:
             compile_cpp(src_file, exe_path)
-            output = run_program(exe_path, input_file)
+            output, elapsed = run_program(exe_path, input_file)
         except Exception as e:
+            if problem_id is not None:
+                record_submission(problem_id, str(e), time_ms=0)
             return False, str(e)
+        
         with open(answer_file, 'r') as f:
             answer=f.read()
+            
         if compare_outputs(output, answer):
-            return True, "你AC了！"
+            status = "Accepted"
+            ok = True
         else:
-            return False, "你WA了！"
+            status = "Wrong Answer"
+            ok = False
+        if problem_id is not None:
+            record_submission(problem_id, status, time_ms=int(elapsed))
+        
+        return ok, status
 
