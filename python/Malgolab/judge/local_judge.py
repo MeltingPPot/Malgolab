@@ -18,8 +18,8 @@ def compile_cpp(src_path, output_exe):
         text=True        
     )
     if result.returncode != 0:
-        out_put = result.stderr.strip() or "UnknowError"
-        raise RuntimeError(f"CompileError\n {out_put}")
+        out_put = result.stderr.strip() or "UKE"
+        raise RuntimeError(f"CE\n {out_put}")
     
 def run_program(exe_path, input_path):
     '''
@@ -41,11 +41,11 @@ def run_program(exe_path, input_path):
                 timeout = 5
             )
         except sbs.TimeoutExpired:
-            raise RuntimeError("TimeLimit Error！")
+            raise RuntimeError("TLE")
 
     elapsed = (time.perf_counter() - start) * 1000  # 秒 → 毫秒
     if result.returncode != 0:
-        raise RuntimeError("RuntimeError!")
+        raise RuntimeError("RE")
 
     return result.stdout, elapsed
 
@@ -70,7 +70,7 @@ def judge_one(src_file, input_file, answer_file, problem_id=None):
     :param src_file: Path 对象，解题代码文件路径
     :param input_file: Path 对象，输入文件路径
     :param answer_file: Path 对象，答案文件路径
-    :param problem_id: 题目ID（如果提供，则记录提交结果）
+    :param problem_id: 题目ID如果提供ID则记录提交结果
     """
     temp_dir = Path("data/temp/judge_runs")
     temp_dir.mkdir(parents=True, exist_ok=True)
@@ -100,4 +100,3 @@ def judge_one(src_file, input_file, answer_file, problem_id=None):
             record_submission(problem_id, status, time_ms=int(elapsed))
         
         return ok, status
-
