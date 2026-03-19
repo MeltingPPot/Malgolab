@@ -19,7 +19,7 @@ def compile_cpp(src_path, output_exe):
     )
     if result.returncode != 0:
         out_put = result.stderr.strip() or "UKE"
-        raise RuntimeError(f"CE\n {out_put}")
+        raise RuntimeError(f"CE {out_put}")
     
 def run_program(exe_path, input_path):
     '''
@@ -91,10 +91,10 @@ def judge_one(src_file, input_file, answer_file, problem_id=None):
             answer=f.read()
             
         if compare_outputs(output, answer):
-            status = "Accepted"
+            status = "AC"
             ok = True
         else:
-            status = "Wrong Answer"
+            status = "WA"
             ok = False
         if problem_id is not None:
             record_submission(problem_id, status, time_ms=int(elapsed))

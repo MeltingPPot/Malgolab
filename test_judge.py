@@ -17,9 +17,17 @@ ans = Path("data/test_ab/1.out")
 
 ok, msg = judge_one(src, inp, ans)
 
-if ok:
-    # 绿色输出
-    print(Fore.GREEN + msg + Style.RESET_ALL)
+if msg == "AC":
+    color = Fore.GREEN
+elif msg == "WA":
+    color = Fore.RED
+elif msg == "TLE":
+    color = Fore.YELLOW
+elif msg == "RE":
+    color = Fore.MAGENTA
+elif msg == "CE":
+    color = Fore.CYAN
 else:
-    # 红色输出
-    print(Fore.RED + msg + Style.RESET_ALL)
+    color = Fore.WHITE
+
+print(color + msg + Style.RESET_ALL)
