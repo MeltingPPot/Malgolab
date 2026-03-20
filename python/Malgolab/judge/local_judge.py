@@ -1,6 +1,7 @@
-import subprocess as sbs
-import tempfile 
+import os
 import time
+import tempfile 
+import subprocess as sbs
 from pathlib import Path
 from .models import record_submission
 
@@ -8,8 +9,8 @@ def compile_cpp(src_path, output_exe):
     """
     compile_cpp 的 Docstring
     编译 C++ 源文件    
-    :param src_path: Path 对象，源文件路径
-    :param output_exe: Path 对象，输出可执行文件路径
+    :param src_path: 源文件路径
+    :param output_exe: 输出可执行文件路径
     :raises RuntimeError: 如果编译失败
     """
     result = sbs.run(
@@ -25,8 +26,8 @@ def run_program(exe_path, input_path):
     '''
     run_program 的 Docstring
     运行可执行文件，传入输入文件，返回标准输出
-    :param exe_path: Path 对象，可执行文件路径
-    :param input_path: Path 对象，输入文件路径
+    :param exe_path: 可执行文件路径
+    :param input_path: 输入文件路径
     :raises RuntimeError: 如果超时或运行时错误
     :return: 程序输出的字符串以及运行时间
     '''
@@ -67,9 +68,9 @@ def judge_one(src_file, input_file, answer_file, problem_id=None):
     """
     judge_one 的 Docstring
     测评单个测试点
-    :param src_file: Path 对象，解题代码文件路径
-    :param input_file: Path 对象，输入文件路径
-    :param answer_file: Path 对象，答案文件路径
+    :param src_file: 解题代码文件路径
+    :param input_file: 输入文件路径
+    :param answer_file: 答案文件路径
     :param problem_id: 题目ID如果提供ID则记录提交结果
     """
     temp_dir = Path("data/temp/judge_runs")
@@ -100,3 +101,41 @@ def judge_one(src_file, input_file, answer_file, problem_id=None):
             record_submission(problem_id, status, time_ms=int(elapsed))
         
         return ok, status
+def judge_all(src_file, test_dir, problem_id=None):
+    '''
+    judge_all 的 Docstring
+    评测目录下的所有测试点。
+    :param src_file: 解题代码文件路径
+    :param test_dir: 包含 .in/.out 文件的目录
+    :param problem_id:  题目ID（如果提供，则记录整体结果）
+    '''
+    passed = 0
+    total = 0
+    results = []
+
+    test_dir = Path(test_dir)
+
+    if not test_dir.exists():
+        raise FileNotFoundError(f"测试目录不存在: {test_dir}")
+
+    for f in os.listdir(test_dir):
+        if f.endswith('.in'):
+            base = f[:-3] 
+            inp = test_dir / f
+            ans = test_dir / (base + '.out')
+            if not ans.exists(): continue
+            total += 1
+            ok, status = judge_one(src_file, inp, ans, problem_id=None)
+            results.append((base, ok, status))
+            if ok: passed += 1
+    if total == 0:
+        overall_status = 'NO_TEST'
+    elif passed == total:
+        overall_status = 'AC'
+    else:
+        overall_status = 'WA'
+
+    if problem_id is not None:
+        record_submission(problem_id, overall_status, time_ms=0)
+    
+    return passed, total, overall_status, results
