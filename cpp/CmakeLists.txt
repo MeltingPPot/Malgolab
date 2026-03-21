@@ -12,14 +12,29 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build/bin)
 
+# 添加算法库文件
 file(GLOB APP_SOURCES "${PROJECT_SOURCE_DIR}/apps/*.cpp")
-
 foreach(APP_SOURCE ${APP_SOURCES})
-
     get_filename_component(APP_NAME ${APP_SOURCE} NAME_WE)    
     add_executable(${APP_NAME} ${APP_SOURCE})
-
 endforeach()
+
+# 添加数据生成器
+file(GLOB GEN_SOURCES "${PROJECT_SOURCE_DIR}/generators/*.cpp")
+foreach(GEN_SOURCE ${GEN_SOURCES})
+    get_filename_component(GEN_NAME ${GEN_SOURCE} NAME_WE)
+    add_executable(${GEN_NAME} ${GEN_SOURCE})
+endforeach()
+
+# 添加暴力解（如果有）
+file(GLOB BRUTE_SOURCES "${PROJECT_SOURCE_DIR}/bruteforce/*.cpp")
+foreach(BRUTE_SOURCE ${BRUTE_SOURCES})
+    get_filename_component(BRUTE_NAME ${BRUTE_SOURCE} NAME_WE)
+    add_executable(${BRUTE_NAME} ${BRUTE_SOURCE})
+endforeach()
+
+
+
 
 # 将 include 目录添加到头文件搜索路径中。
 # 自动收集 apps 目录下所有的 .cpp 文件，存入 APP_SOURCES 变量。
@@ -27,3 +42,4 @@ endforeach()
 # 遍历每个源文件，为每个文件创建一个可执行目标。
 # 获取文件名（不含扩展名），例如 segment_tree_cli.cpp → segment_tree_cli
 # 添加一个可执行目标，目标名就是文件名，源文件为当前遍历的 .cpp 文件。
+# 注意：使用 file(GLOB) 时，新增源文件需要重新运行 CMake 才能被识别。
