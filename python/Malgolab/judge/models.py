@@ -63,6 +63,7 @@ def add_problem(oj, pid, title='', difficulty=0, tags='', sample_dir='',time_lim
     :param difficulty: 题目难度
     :param tags: 题目标签
     :param sample_dir: 样例文件目录
+    以 秒 和 MB 为单位
     """
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()

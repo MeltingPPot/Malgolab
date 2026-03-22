@@ -9,10 +9,13 @@ from .models import add_problem
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
 }
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 API_BASE = "https://codeforces.com/api"
-CACHE_DIR = Path('data/cache')
+CACHE_DIR = PROJECT_ROOT / 'data' / 'cache'
 PROBLEMS_CACHE = CACHE_DIR / 'problemset.json'
 CACHE_EXPIRY_DAYS = 1   # 缓存有效期（天），设为0则每次更新
+
+# print(PROJECT_ROOT)
 
 def get_cached_problems():
     '''
@@ -120,13 +123,17 @@ def parse_memory_limit(text):
     match = re.search(r'(\d+)', text)
     return int(match.group(1)) if match else 0
 
-def save_problem(problem_info, base_dir='data/problems'):
+def save_problem(problem_info, base_dir=None):
     '''
     save_problem 的 Docstring
     将题目信息保存到数据库和文件系统。
     :param problem_info: 包含完整信息的字典
     :param base_dir: 样例文件存放根目录（相对于项目根）
     '''
+    if base_dir is None:
+        base_dir = PROJECT_ROOT / 'data' / 'problems'
+    else:
+        base_dir = Path(base_dir)
     problem_dir = Path(base_dir) / problem_info['oj'] / problem_info['pid']
     problem_dir.mkdir(parents=True, exist_ok=True)
 
