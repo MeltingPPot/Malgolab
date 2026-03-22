@@ -29,6 +29,8 @@ def init_db():
                 difficulty INTEGER,
                 tags TEXT,
                 sample_dir TEXT,
+                time_limit INTEGER DEFAULT 0,
+                memory_limit INTEGER DEFAULT 0,
                 UNIQUE(oj, pid)
             )
         ''')
@@ -51,7 +53,7 @@ def init_db():
             )
         ''')
     print(f"数据库初始化完成：{DB_PATH}")
-def add_problem(oj, pid, title='', difficulty=0, tags='', sample_dir=''):
+def add_problem(oj, pid, title='', difficulty=0, tags='', sample_dir='',time_limit=0, memory_limit=0):
     """
     add_problem 的 Docstring
     向 problems 添加一道题目，如果存在就返回其ID
@@ -66,9 +68,9 @@ def add_problem(oj, pid, title='', difficulty=0, tags='', sample_dir=''):
         cursor = conn.cursor()
         try:
             cursor.execute('''
-                INSERT INTO problems (oj, pid, title, difficulty, tags, sample_dir)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (oj, pid, title, difficulty, tags, sample_dir))
+                INSERT INTO problems (oj, pid, title, difficulty, tags, sample_dir, time_limit, memory_limit)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (oj, pid, title, difficulty, tags, sample_dir, time_limit, memory_limit))
             problem_id = cursor.lastrowid
         except sqlite3.IntegrityError:
             cursor.execute('SELECT id FROM problems WHERE oj=? AND pid=?',(oj, pid))

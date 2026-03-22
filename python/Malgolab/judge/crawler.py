@@ -1,3 +1,4 @@
+import re
 import requests
 import time
 import json
@@ -109,6 +110,16 @@ def fetch_cf_samples(contest_id, problem_index):
     
     return samples, time_limit, memory_limit
 
+def parse_time_limit(text):
+    """从时间限制字符串中提取数值（秒），例如 "2 seconds" -> 2"""
+    match = re.search(r'(\d+(?:\.\d+)?)', text)
+    return int(float(match.group(1))) if match else 0
+
+def parse_memory_limit(text):
+    """从内存限制字符串中提取数值（MB），例如 "256 MB" -> 256"""
+    match = re.search(r'(\d+)', text)
+    return int(match.group(1)) if match else 0
+
 def save_problem(problem_info, base_dir='data/problems'):
     '''
     save_problem 的 Docstring
@@ -119,13 +130,18 @@ def save_problem(problem_info, base_dir='data/problems'):
     problem_dir = Path(base_dir) / problem_info['oj'] / problem_info['pid']
     problem_dir.mkdir(parents=True, exist_ok=True)
 
+    time_limit_sec = parse_time_limit(problem_info.get('time_limit', ''))
+    memory_limit_mb = parse_memory_limit(problem_info.get('memory_limit', ''))
+
     problem_id = add_problem(
         oj = problem_info['oj'],
         pid = problem_info['pid'],
         title = problem_info['title'],
         difficulty = problem_info.get('rating', 0),
         tags = ','.join(problem_info.get('tags', [])),
-        sample_dir = str(problem_dir)  # 样例目录
+        sample_dir = str(problem_dir),  # 样例目录
+        time_limit=time_limit_sec,
+        memory_limit=memory_limit_mb
     )
     print(f"题目已添加到数据库，ID: {problem_id}")
 
@@ -140,7 +156,7 @@ def save_problem(problem_info, base_dir='data/problems'):
     info_file = problem_dir / 'info.json'
     with open(info_file, 'w', encoding='utf-8') as f:
         json.dump(problem_info, f, indent=2, ensure_ascii=False) #带缩进、保留中文
-        print(f"题目信息已保存到 {info_file}")
+    print(f"题目信息已保存到 {info_file}")
 
 def fetch_and_save_cf(contest_id, problem_index):
     '''
