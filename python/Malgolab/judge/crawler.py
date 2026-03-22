@@ -9,6 +9,37 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
 }
 API_BASE = "https://codeforces.com/api"
+CACHE_DIR = Path('data/cache')
+PROBLEMS_CACHE = CACHE_DIR / 'problemset.json'
+CACHE_EXPIRY_DAYS = 1   # 缓存有效期（天），设为0则每次更新
+
+def get_cached_problems():
+    '''
+    get_cached_problems 的 Docstring
+    获取缓存的题目列表，如果缓存不存在或过期则重新请求 API
+    '''
+    if PROBLEMS_CACHE.exists():
+        mtime = PROBLEMS_CACHE.stat().st_mtime
+        if time.time() - mtime < CACHE_EXPIRY_DAYS * 86400:
+            try:
+                with open(PROBLEMS_CACHE, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except: 
+                pass
+        
+    url = f"{API_BASE}/problemset.problems"   
+    try:
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+    except requests.RequestException as e:
+        raise RuntimeError(f"API返回失败：{e}")
+    if data.get('status') != 'OK':
+        raise RuntimeError(f"API返回错误：{data}")
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    with open(PROBLEMS_CACHE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2)
+    return data
 
 def fetch_cf_problem_meta(contest_id, problem_index):
     '''
@@ -18,16 +49,8 @@ def fetch_cf_problem_meta(contest_id, problem_index):
     :param contest_id: 比赛编号
     :param problem_index: 题目索引
     '''
-    url = f"{API_BASE}/problemset.problems"
-    try:
-        resp = requests.get(url, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-    except requests.RequestException as e:
-        raise RuntimeError(f"API返回失败：{e}")
     
-    if data.get('status') != 'OK':
-        raise RuntimeError(f"API返回错误：{data}")
+    data = get_cached_problems()
 
     for problem in data['result']['problems']:
         if problem.get('contestId') == contest_id and problem.get('index') == problem_index:
@@ -36,7 +59,6 @@ def fetch_cf_problem_meta(contest_id, problem_index):
                 'tags': problem.get('tags', []),
                 'rating': problem.get('rating', 0)
             }
-        
     raise RuntimeError(f"未找到题目：{contest_id} {problem_index}")
 
 def fetch_cf_samples(contest_id, problem_index):
