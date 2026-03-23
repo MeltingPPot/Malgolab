@@ -4,8 +4,6 @@
 用法:
     python scripts/init_solution.py <oj> <pid> [--template <name>] [--title <title>] [--no-db]
 """
-import sys
-import argparse
 from pathlib import Path
 from datetime import date
 
@@ -20,7 +18,6 @@ def ensure_templates_exist():
     """确保 templates 目录和默认模板存在"""
     if not TEMPLATES_DIR.exists():
         TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
-        print(f"创建模板目录: {TEMPLATES_DIR}")
 
     default_template = TEMPLATES_DIR / 'default.cpp'
     if not default_template.exists():
@@ -45,7 +42,6 @@ def generate_solution(oj, pid, template_name='default', title=''):
     # 确定模板文件
     template_file = TEMPLATES_DIR / f'{template_name}.cpp'
     if not template_file.exists():
-        print(f"警告：模板{template_name}不存在，使用 default")
         template_file = TEMPLATES_DIR / 'default.cpp'
         if not template_file.exists():
             raise FileNotFoundError("没有找到任何模板文件，请先创建 templates/default.cpp")
@@ -70,16 +66,10 @@ def generate_solution(oj, pid, template_name='default', title=''):
     sol_file = target_dir / 'sol.cpp'
     if not sol_file.exists():
         sol_file.write_text(content)
-        print(f"已创建解题文件：{sol_file}")
-    else :
-        print(f"解题文件已存在：{sol_file}")
 
     # 创建笔记文件
     note_file = target_dir / 'notes.md'
     if not note_file.exists():
          note_file.write_text(f"# {oj} {pid} - {title}")
-         print(f"已创建笔记文件：{note_file}")
-    else:
-         print(f"笔记文件已存在：{note_file}")
     
     return target_dir
