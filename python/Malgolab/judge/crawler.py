@@ -150,7 +150,6 @@ def save_problem(problem_info, base_dir=None):
         time_limit=time_limit_sec,
         memory_limit=memory_limit_mb
     )
-    print(f"题目已添加到数据库，ID: {problem_id}")
 
     for i, (inp, out) in enumerate(problem_info.get('samples', []), start=1):
         with open(problem_dir / f"{i}.in", 'w', encoding='utf-8') as f:
@@ -158,36 +157,21 @@ def save_problem(problem_info, base_dir=None):
 
         with open(problem_dir / f"{i}.out", 'w', encoding='utf-8') as f:
             f.write(out)
-    print(f"样例已经保存到：{problem_dir}")
         
     info_file = problem_dir / 'info.json'
     with open(info_file, 'w', encoding='utf-8') as f:
         json.dump(problem_info, f, indent=2, ensure_ascii=False) #带缩进、保留中文
-    print(f"题目信息已保存到 {info_file}")
+    return problem_id
 
 def fetch_and_save_cf(contest_id, problem_index):
     '''
     fetch_and_save_cf 的 Docstring
     抓取并保存 Codeforces 题目的完整信息（元数据+样例）
     '''
-    print(f"正在抓取CodeForces {contest_id}{problem_index} ...")
-
     time.sleep(0.5)
-
-    try:
-        meta = fetch_cf_problem_meta(contest_id, problem_index)
-    except Exception as e:
-        print(f"API抓取失败\n: {e}")
-        return
-    
+    meta = fetch_cf_problem_meta(contest_id, problem_index)
     time.sleep(0.5)
-
-    try:
-        samples, time_limit, memory_limit = fetch_cf_samples(contest_id, problem_index)
-    except Exception as e:
-        print(f"网页抓取失败: {e}")
-        return
-    
+    samples, time_limit, memory_limit = fetch_cf_samples(contest_id, problem_index)
     problem_info = {
         'oj': 'cf',
         'contest_id': contest_id,
@@ -202,19 +186,7 @@ def fetch_and_save_cf(contest_id, problem_index):
     }
 
     try:
-        save_problem(problem_info)
-        print('成功')
+        problem_id = save_problem(problem_info)
     except Exception as e:
-        print(f'失败：{e}')
-
-if __name__ == '__main__':
-    import sys
-    if len(sys.argv) < 3:
-        print("用法: python -m Malgolab.judge.crawler cf <contest_id> <problem_index>")
-        sys.exit(1)
-    if sys.argv[1] == 'cf':
-        contest_id = int(sys.argv[2])
-        problem_index = sys.argv[3].upper() # 转为大写
-        fetch_and_save_cf(contest_id, problem_index)
-    else:
-        print("目前仅支持 Codeforces (cf)")
+        raise RuntimeError(f"失败：{e}")
+    return problem_id

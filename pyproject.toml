@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Malgolab"
+version = "1.0.0"
+description = "个人算法竞赛训练平台"
+authors = [{name = "Melting_Pot", email = "miaoting666666@163.com"}]
+license = {text = "MIT"}
+requires-python = ">=3.9"
+dependencies = [
+    "requests",
+    "beautifulsoup4",
+    "colorama",
+    "click",
+]
+
+[tool.setuptools.packages.find]
+where = ["python"]
+
+[project.scripts]
+malgolab = "Malgolab.cli.main:cli"

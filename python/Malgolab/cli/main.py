@@ -8,7 +8,7 @@ def cli():
     pass
 
 cli.add_command(init.init)
-cli.add_command(fetch.fetch)   # 添加
+cli.add_command(fetch.fetch)   # match.group(3)添加
 
 if __name__ == '__main__':
     cli()

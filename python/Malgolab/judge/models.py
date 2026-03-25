@@ -4,6 +4,7 @@ from pathlib import Path
 
 # 数据库文件路径
 DB_PATH = Path(__file__).resolve().parents[3] / 'data' / 'problems.db'
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)   # 确保 data 目录存在
 
 def init_db():
     """
@@ -65,6 +66,7 @@ def add_problem(oj, pid, title='', difficulty=0, tags='', sample_dir='',time_lim
     :param sample_dir: 样例文件目录
     以 秒 和 MB 为单位
     """
+    init_db()
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         try:
@@ -76,6 +78,11 @@ def add_problem(oj, pid, title='', difficulty=0, tags='', sample_dir='',time_lim
         except sqlite3.IntegrityError:
             cursor.execute('SELECT id FROM problems WHERE oj=? AND pid=?',(oj, pid))
             problem_id = cursor.fetchone()[0]
+            cursor.execute('''
+                UPDATE problems
+                SET title=?, difficulty=?, tags=?, sample_dir=?, time_limit=?, memory_limit=?
+                WHERE id=?
+            ''', (title, difficulty, tags, sample_dir, time_limit, memory_limit, problem_id))
     return problem_id
 
 def record_submission(problem_id, status, time_ms=0, memory_kb=0):
@@ -83,6 +90,7 @@ def record_submission(problem_id, status, time_ms=0, memory_kb=0):
     record_submission 的 Docstring
     记录一次提交结果
     """
+    init_db()
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute('''
@@ -95,6 +103,7 @@ def get_problem_stats(problem_id):
     get_problem_stats 的 Docstring
     获取某道题的提交统计（按状态分组）
     '''
+    init_db()
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute('''
@@ -110,6 +119,7 @@ def get_all_problems():
     get_all_problems 的 Docstring
     返回所有题目列表
     ''' 
+    init_db()
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute('SELECT id, oj, pid, title FROM problems')
