@@ -95,4 +95,4 @@ def init(oj, pid, template, no_db, no_open, brute):
             except Exception as e:
                 click.echo(f"警告：无法自动打开文件: {e}", err=True)
     except Exception as e:
-        click.echo(f"❌ 错误: {e}", err=True)
+        click.echo(f"错误: {e}", err=True)
