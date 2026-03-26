@@ -1,6 +1,6 @@
 # python/Malgolab/cli/main.py
 import click
-from .commands import init, fetch   # 确保 fetch 已导入
+from .commands import init, fetch, judge 
 
 @click.group()
 def cli():
@@ -8,7 +8,8 @@ def cli():
     pass
 
 cli.add_command(init.init)
-cli.add_command(fetch.fetch)   # match.group(3)添加
+cli.add_command(fetch.fetch)
+cli.add_command(judge.judge)
 
 if __name__ == '__main__':
     cli()
