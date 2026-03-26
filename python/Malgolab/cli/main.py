@@ -1,6 +1,6 @@
 # python/Malgolab/cli/main.py
 import click
-from .commands import init, fetch, judge, edit, contest
+from .commands import init, fetch, judge, edit, contest, judge_id
 
 @click.group()
 def cli():
@@ -12,6 +12,7 @@ cli.add_command(fetch.fetch)
 cli.add_command(judge.judge)
 cli.add_command(edit.edit)
 cli.add_command(contest.contest)
+cli.add_command(judge_id.judge_id)
 
 if __name__ == '__main__':
     cli()
