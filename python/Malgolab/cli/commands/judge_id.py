@@ -10,7 +10,7 @@ from ...judge.models import get_all_problems
 @click.option('--problem-id', type=int, help='题目ID（可选，用于记录提交）')
 def judge_id(oj, pid, problem_id):
     """通过 OJ 和题目 ID 评测解题代码（自动定位文件和样例）"""
-    project_root = Path(__file__).resolve().parents[3]
+    project_root = Path(__file__).resolve().parents[4]
 
     # 构建解题文件路径
     src_file = project_root / 'data' / 'solutions' / oj / pid / 'sol.cpp'
