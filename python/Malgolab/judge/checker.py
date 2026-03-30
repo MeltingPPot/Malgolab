@@ -26,11 +26,9 @@ def run_check(solver_exe, brute_exe, gen_exe, rounds=100, timeout=2, save_input=
                 timeout=timeout
             )
         except sbs.TimeoutExpired:
-            print(f"数据器生成数据超时，第{i}轮中断")
-            break
+            raise RuntimeError(f"数据生成器超时，第{i}轮中断")
         if gen_proc.returncode != 0:
-            print(f"数据器运行出错（返回码{gen_proc.returncode}），第{i}轮中断")
-            break
+             raise RuntimeError(f"数据生成器运行出错（返回码{gen_proc.returncode}），第{i}轮中断")
         input_data = gen_proc.stdout
 
         # 正解
@@ -40,8 +38,7 @@ def run_check(solver_exe, brute_exe, gen_exe, rounds=100, timeout=2, save_input=
             try:
                 sol_out, sol_time = run_program(solver_exe, Path(fin.name))
             except Exception as e:
-                print(f'正解运行失败：{e}，输入数据：\n{input_data}')
-                continue
+                raise RuntimeError(f"正解运行失败：{e}，输入数据：\n{input_data}")
         # 正解或暴力解运行失败时跳出本轮循环
         # 暴力
         with tempfile.NamedTemporaryFile(mode='w', suffix='.in') as fin:
@@ -50,29 +47,24 @@ def run_check(solver_exe, brute_exe, gen_exe, rounds=100, timeout=2, save_input=
             try:
                 bru_out, bru_time = run_program(brute_exe, Path(fin.name))
             except Exception as e:
-                print(f'暴力运行失败：{e}，输入数据：\n{input_data}')
-                continue
+                 raise RuntimeError(f"暴力解运行失败：{e}，输入数据：\n{input_data}")
 
         if not compare_outputs(sol_out, bru_out):
-            print(f"第{i}轮发现差异！")
-            print("=== 输入数据 ===")
-            print(input_data)
-            print("=== 正解输出 ===")
-            print(sol_out)
-            print("=== 暴力输出 ===")
-            print(bru_out)
             if save_input:
                 fail_path = fail_dir / f"fail_input_{i}.in"
                 with open(fail_path, "w") as f:
                     f.write(input_data)
-                print(f"输入数据已保存到 {fail_path}")
-            return False
+            raise RuntimeError(
+                f"第{i}轮发现差异\n"
+                f"=== 输入数据 ===\n{input_data}\n"
+                f"=== 正解输出 ===\n{sol_out}\n"
+                f"=== 暴力输出 ===\n{bru_out}"
+            )
         
         print(f"第{i}轮运行无误")
         print(f"=== 正解用时 ===\n{sol_time:.2f} ms")
         print(f"=== 暴力用时 ===\n{bru_time:.2f} ms")
 
-    print(f"对拍通过 {rounds} 轮，未发现差异")
     return True
 
 def check_with_sources(solver_src, brute_src, gen_src, rounds=100, timeout=2):
@@ -90,26 +82,11 @@ def check_with_sources(solver_src, brute_src, gen_src, rounds=100, timeout=2):
         gen_exe = tmp_path / 'gen.exe'
 
         # 编译正解
-        try:
-            compile_cpp(solver_src, solver_exe)
-        except RuntimeError as e:
-            print(f"优化解编译失败: {e}")
-            return False
-
+        compile_cpp(solver_src, solver_exe)
         # 编译暴力
-        try:
-            compile_cpp(brute_src, brute_exe)
-        except RuntimeError as e:
-            print(f"暴力解编译失败: {e}")
-            return False
-
+        compile_cpp(brute_src, brute_exe)
         # 编译数据生成器
-        try:
-            compile_cpp(gen_src, gen_exe)
-        except RuntimeError as e:
-            print(f"数据生成器编译失败: {e}")
-            return False
-
+        compile_cpp(gen_src, gen_exe)
         # 运行对拍
         result = run_check(solver_exe, brute_exe, gen_exe, rounds, timeout)
         return result

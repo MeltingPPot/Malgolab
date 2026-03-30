@@ -61,21 +61,18 @@ def init(oj, pid, template, no_db, no_open, brute):
          # 如果指定了 --brute，生成暴力解法模板
         if brute:
             brute_file = target_dir / 'brute.cpp'
-            if not brute_file.exists():
-                brute_content = """// 暴力解法
-                    // 注意：本代码仅为模板，请根据题目要求自行实现暴力算法
-                    #include <bits/stdc++.h>
-                    using namespace std;
+            brute_content = """// 暴力解法
+// 注意：本代码仅为模板，请根据题目要求自行实现暴力算法
+#include <bits/stdc++.h>
+using namespace std;
 
-                    int main() {
-                        // 在这里实现暴力算法
-                        return 0;
-                    }
-                    """
-                brute_file.write_text(brute_content)
-                click.echo(f"暴力解法模板已生成: {brute_file}")
-            else:
-                click.echo(f"暴力解法文件已存在，跳过: {brute_file}")
+int main() {
+// 在这里实现暴力算法
+return 0;
+}
+"""
+            brute_file.write_text(brute_content)
+            click.echo(f"暴力解法模板已生成: {brute_file}")
         if not no_db:
             problem_id = add_problem(
                 oj=oj,
