@@ -2,6 +2,7 @@
 import click
 from .commands import init, fetch, judge, edit, contest, judge_id, check
 
+@click.version_option(version="1.0.0", prog_name="malgolab")
 @click.group()
 def cli():
     """Malgolab - 个人算法竞赛训练平台"""
