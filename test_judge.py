@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from colorama import init, Fore, Style
 
 # 初始化 colorama（自动适配 Windows）
@@ -11,11 +12,21 @@ sys.path.insert(0, str(ss))
 
 from Malgolab.judge.local_judge import judge_one
 
-src = Path("data/test_ab/sol.cpp")
-inp = Path("data/test_ab/1.in")
-ans = Path("data/test_ab/1.out")
+with TemporaryDirectory() as tmpdir:
+    root = Path(tmpdir)
+    src = root / "sol.cpp"
+    inp = root / "1.in"
+    ans = root / "1.out"
 
-ok, msg = judge_one(src, inp, ans)
+    src.write_text(
+        "#include <bits/stdc++.h>\n"
+        "using namespace std;\n"
+        "int main(){long long a,b; if(!(cin>>a>>b)) return 0; cout<<a+b; return 0;}\n"
+    )
+    inp.write_text("1 2\n")
+    ans.write_text("3\n")
+
+    ok, msg = judge_one(src, inp, ans)
 
 if msg == "AC":
     color = Fore.GREEN

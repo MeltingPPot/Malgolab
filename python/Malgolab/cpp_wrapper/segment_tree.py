@@ -1,85 +1,65 @@
+"""Python wrapper for the C++ segment tree executable.
+
+Requires the C++ binary to be built via: .\\scripts\\build_cpp.ps1
+"""
+
 import subprocess as sbs
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
-EXE_PATH = ROOT_DIR /  'cpp' / 'build' / 'bin' / 'segment_cli_tree.exe'
+_ROOT = Path(__file__).resolve().parents[3]
+_EXE = _ROOT / 'cpp' / 'build' / 'bin' / 'segment_cli_tree.exe'
 
-if not EXE_PATH.exists():
-    raise FileNotFoundError(
-        f"找不到捏: {EXE_PATH}\n"
-        "请先运行命令以构建 C++ 可执行文件！:.\\scripts\\build_cpp.ps1"
-    )
+
+def _ensure_exe():
+    if not _EXE.exists():
+        raise FileNotFoundError(
+            f"C++ binary not found: {_EXE}\n"
+            "Build it first: .\\scripts\\build_cpp.ps1")
+
 
 class SegmentTree:
+    """Segment tree backed by a compiled C++ implementation (subprocess)."""
 
     def __init__(self, arr):
-        '''
-        __init__ 的 Docstring:初始化
-
-        :param self: 本地的备份数组
-        :param arr: 线段树维护数组
-        '''
-        self.arr = arr
+        _ensure_exe()
+        self.arr = list(arr)
         self.n = len(arr)
 
-    def _run_ops(self, opt):
-        '''
-        _run_ops 的 Docstring
-        
-        :param self: 实例本身
-        :param opt: 每个操作的元组
-        '''
-
-        input_lines = [str(self.n)]
-        input_lines.append(' '.join([str(x) for x in self.arr]))
-
-        for op in opt:
+    def _run_ops(self, ops):
+        """Execute a batch of operations via the C++ CLI."""
+        lines = [str(self.n)]
+        lines.append(' '.join(str(x) for x in self.arr))
+        for op in ops:
             if op[0] == 'q':
-                input_lines.append(f"q {op[1]} {op[2]}")
+                lines.append(f"q {op[1]} {op[2]}")
             elif op[0] == 'u':
-                input_lines.append(f"u {op[1]} {op[2]}")
-        input_str = '\n'.join(input_lines) +'\n'
+                lines.append(f"u {op[1]} {op[2]}")
+        payload = '\n'.join(lines) + '\n'
 
         try:
-            result = sbs.run(
-                [str(EXE_PATH)],
-                input=input_str,
+            proc = sbs.run(
+                [str(_EXE)],
+                input=payload,
                 capture_output=True,
                 text=True,
-                timeout=10
-            )
+                timeout=10)
         except sbs.TimeoutExpired:
-            raise RuntimeError("C++ 程序运行超时")
-        if result.returncode != 0:
-            raise RuntimeError(f"C++ 程序运行出错：\n{result.stderr}")
+            raise RuntimeError("Segment tree C++ process timed out")
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"Segment tree C++ error:\n{proc.stderr}")
 
-        outputs = result.stdout.strip().split('\n')
-        return [int(x) for x in outputs if x.strip()]
+        return [int(x) for x in proc.stdout.strip().split('\n') if x.strip()]
+
     def query(self, l, r):
-        '''
-        对外接口：区间查询 [l, r] 的和
-        :param l: 左边界（包含）
-        :param r: 右边界（包含）
-        :return: 区间和
-        '''
-        # 调用 _run_ops 执行一个查询操作，并返回第一个（也是唯一）结果
+        """Range sum query on [l, r] (inclusive)."""
         return self._run_ops([('q', l, r)])[0]
 
     def update(self, pos, val):
-        '''
-        对外接口：单点更新，将位置 pos 的值改为 val
-        :param pos: 要更新的位置
-        :param val: 新值
-        '''
-        # 调用 _run_ops 执行更新操作（无返回值）
+        """Point update: set arr[pos] = val."""
         self._run_ops([('u', pos, val)])
-        # 同步更新本地数组副本，保持状态一致（如果后续需要查询或再次更新）
         self.arr[pos] = val
 
     def batch(self, ops):
-        '''
-        批量执行多个操作，并返回所有查询结果
-        :param ops: 操作列表，同 _run_ops 的 operations 参数
-        :return: 查询结果列表
-        '''
+        """Execute multiple queries/updates, return query results in order."""
         return self._run_ops(ops)

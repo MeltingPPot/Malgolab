@@ -1,0 +1,18 @@
+Progress Log
+2026-06-02
+
+v1.1.0 (current)
+- Refactored models.py: lazy DB init, WAL mode, removed redundant init_db calls.
+- Fixed local_judge.py: proper CE/RE/TLE status reporting, compile inside try block.
+- Extracted shared utilities: resolve_timeout, STATUS_COLORS, print_results -> cli/utils.py.
+- Deduplicated judge.py and judge_id.py (removed ~120 lines of copy-paste).
+- Removed module-level side effects in checker.py, segment_tree.py.
+- Deleted dead code in edit.py, debug comments in crawler.py.
+- Unified all CLI messages to English, professional error formatting.
+- Version reset to 1.1.0 (was prematurely bumped).
+
+Planned:
+v1.2.0 - Parallel test execution, diff viewer, timeout optimization
+v1.3.0 - AtCoder support
+v1.4.0 - Contest workflow enhancement + watch mode
+v1.5.0 - Config file, shell completions, README -> v2.0.0
