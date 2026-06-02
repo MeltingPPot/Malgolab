@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Malgolab"
-version = "1.3.0"
+version = "1.4.0"
 description = "个人算法竞赛训练平台"
 authors = [{name = "Melting_Pot", email = "miaoting666666@163.com"}]
 license = {text = "MIT"}
