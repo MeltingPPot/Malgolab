@@ -1,30 +1,25 @@
-# MalgoLab
+# Malgolab
 
-MalgoLab 是一个面向算法竞赛训练的本地工作流工具：
-- 用 `C++` 写题解（`sol.cpp` / `brute.cpp`）
-- 用 `Python CLI` 拉取题目、生成模板、运行本地评测、对拍
-- 将题目与评测记录沉淀到本地数据目录
+A local workflow CLI for competitive programming. Unified problem
+fetching, sample management, template scaffolding, judging, and stress
+testing -- designed for contest-day efficiency.
 
-目前已接入 Codeforces（`cf`），并支持按题号或比赛批量操作。
+## Supported Platforms
 
-## 功能概览
+| Online Judge | Fetch | Contest | Notes |
+|---|---|---|---|
+| Codeforces | Yes | Yes | API + HTML scraping |
+| AtCoder | Yes | Yes | HTML scraping |
 
-- 题目模板生成：`malgolab init <oj> <pid>`
-- 题面与样例抓取：`malgolab fetch <oj> <pid>`
-- 本地评测：`malgolab judge ...`
-- 对拍（正解 vs 暴力）：`malgolab check ...`
-- 比赛批量初始化/抓取：`malgolab contest init|fetch ...`
-- 快速打开代码与笔记：`malgolab edit <oj> <pid>`
+## Requirements
 
-## 环境要求
+- Python >= 3.9
+- C++ toolchain (MinGW-w64 recommended on Windows, GCC/Clang on Linux/macOS)
+- Optional: Conda / Mamba (a pre-configured `python/environment.yaml` is provided)
 
-- Python `>=3.9`（项目脚本入口已在 `pyproject.toml` 配置）
-- C++ 编译工具链（Windows 推荐 MinGW + CMake）
-- 可选：Conda/Mamba（仓库提供 `python/environment.yaml`）
+## Installation
 
-## 安装
-
-### 方式一：推荐（Conda）
+### Option 1: Conda
 
 ```powershell
 conda env create -f python/environment.yaml
@@ -32,139 +27,308 @@ conda activate Malgolab
 pip install -e .
 ```
 
-### 方式二：纯 pip
+### Option 2: pip + venv
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1      # Windows
+# source .venv/bin/activate       # Linux/macOS
 pip install -U pip
 pip install -e .
 ```
 
-安装完成后可使用命令：
+Verify installation:
 
 ```powershell
 malgolab --help
 ```
 
-## 快速开始（Codeforces 单题流程）
+## Quick Start
 
-以 `CF 1000A` 为例：
-
-```powershell
-malgolab init cf 1000A --brute
-malgolab fetch cf 1000A
-malgolab judge cf 1000A
-```
-
-说明：
-- `init` 会在 `data/solutions/cf/1000A/` 生成 `sol.cpp`、`notes.md`（可选 `brute.cpp`）
-- `fetch` 会在 `data/problems/cf/1000A/` 保存样例与题目信息
-- `judge` 会编译并逐个样例评测，输出 `AC/WA/TLE/RE/CE`
-
-## 常用命令
-
-### `init`：生成题解模板
+A typical single-problem workflow (Codeforces):
 
 ```powershell
-malgolab init <oj> <pid> [--template default] [--brute] [--no-db] [--no-open]
+# 1. Create solution template (auto-fetches title)
+malgolab init cf 1234A --brute
+
+# 2. Download problem statement and samples
+malgolab fetch cf 1234A
+
+# 3. Edit your solution (opens in default editor)
+malgolab edit cf 1234A
+
+# 4. Judge against samples
+malgolab judge cf 1234A
 ```
 
-### `fetch`：抓取题目样例（当前支持 `cf`）
+AtCoder workflow:
 
 ```powershell
-malgolab fetch cf <pid>
+malgolab init at abc300_a --brute
+malgolab fetch at abc300_a
+malgolab judge at abc300_a
 ```
 
-### `judge`：本地评测
+## Command Reference
 
-按 OJ + PID 自动定位：
+### init -- Scaffold a solution
+
+```
+malgolab init <OJ> <PID> [OPTIONS]
+```
+
+Creates `sol.cpp`, `notes.md`, and optionally `brute.cpp` from a
+configurable template. Automatically resolves the problem title from
+the local database or the online judge.
+
+Options:
+
+| Option | Description |
+|---|---|
+| `--template NAME` | Template to use (default: `default`) |
+| `--brute` | Also create `brute.cpp` |
+| `--no-db` | Skip database registration |
+| `--no-open` | Do not open the file after creation |
+
+### fetch -- Download problem data
+
+```
+malgolab fetch <OJ> <PID>
+```
+
+Downloads problem metadata (title, tags, rating, time/memory limits)
+and sample test cases. Data is cached locally. Supported OJs: `cf`,
+`at` (or `ac`).
+
+PID formats:
+
+| OJ | Format | Example |
+|---|---|---|
+| `cf` | `{contest}{index}` | `1234A`, `2000F1` |
+| `at` / `ac` | `{contest}_{problem}` | `abc300_a`, `arc100_b` |
+
+### judge -- Evaluate a solution
+
+```
+malgolab judge <OJ> <PID> [OPTIONS]
+malgolab judge --path <DIR> [OPTIONS]
+malgolab judge --src <FILE> --test-dir <DIR> [OPTIONS]
+```
+
+Compiles `sol.cpp` and runs it against all `.in`/`.out` pairs in the
+test directory. Displays per-test timing and a unified diff for wrong
+answers.
+
+Options:
+
+| Option | Description |
+|---|---|
+| `--timeout SEC` | Override the timeout (default: from problem metadata or 5 s) |
+| `--problem-id ID` | Record the result under a specific DB problem ID |
+
+### judge-id -- Evaluate by OJ + PID
+
+```
+malgolab judge-id <OJ> <PID> [OPTIONS]
+```
+
+Convenience alias for `malgolab judge <OJ> <PID>`.
+
+### check -- Stress testing (duel)
+
+```
+malgolab check <OJ> <PID> [OPTIONS]
+malgolab check --solver <FILE> --brute <FILE> --gen <FILE> [OPTIONS]
+```
+
+Compares a solver against a brute-force implementation on
+randomly-generated inputs. When a discrepancy is found, it prints the
+full diff and saves the failing input to `data/failures/`.
+
+Options:
+
+| Option | Default | Description |
+|---|---|---|
+| `--rounds` | 100 | Maximum test rounds |
+| `--timeout` | 2 | Per-program timeout (seconds) |
+
+The generator must read nothing from stdin and write the test input to
+stdout. Both solver and brute must read from stdin and write the
+answer to stdout.
+
+### contest -- Batch contest operations
+
+```
+malgolab contest init   <OJ> <CONTEST_ID>
+malgolab contest fetch  <OJ> <CONTEST_ID>
+malgolab contest status <OJ> <CONTEST_ID>
+malgolab contest judge  <OJ> <CONTEST_ID>
+```
+
+- `init`: Creates solution templates for every problem.
+- `fetch`: Downloads all problem statements and samples.
+- `status`: Displays a table of solution/test presence and last
+  submission result for each problem.
+- `judge`: Batch judges all solutions and prints a summary.
+
+### watch -- Auto-rejudge on file changes
+
+```
+malgolab watch <OJ> <PID> [OPTIONS]
+```
+
+Monitors `sol.cpp` for modifications and automatically recompiles and
+rejudges. Press Ctrl+C to stop. Useful during active development.
+
+Options:
+
+| Option | Default | Description |
+|---|---|---|
+| `--interval` | 1.0 | Polling interval (seconds) |
+| `--timeout SEC` | auto | Per-test timeout |
+
+### edit -- Open files in default editor
+
+```
+malgolab edit <OJ> <PID> [--brute | --note]
+```
+
+### clean -- Remove runtime data
+
+```
+malgolab clean [--all] [--yes]
+```
+
+Removes cache, temporary build artifacts, failure logs, sample data,
+and the local database. Use `--all` to also remove the `solutions/`
+directory. Use `--yes` to skip the confirmation prompt.
+
+### config -- Manage configuration
+
+```
+malgolab config init [--path <DIR>]
+```
+
+Creates a `.malgolab.json` file with default settings in the specified
+directory (or the current working directory).
+
+## Configuration
+
+Malgolab reads settings from three sources, in order of precedence:
+
+1. **Environment variables** (highest priority)
+2. **`.malgolab.json`** in the current directory or any parent
+3. **Built-in defaults**
+
+### Environment variables
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `MALGOLAB_CXX` | C++ compiler | `g++` |
+| `MALGOLAB_CPP_STD` | C++ standard flag | `c++17` |
+| `MALGOLAB_DATA_DIR` | Data directory path | `<project>/data` |
+| `MALGOLAB_TIMEOUT` | Default timeout (seconds) | `5` |
+| `MALGOLAB_TEMPLATE` | Default template name | `default` |
+| `MALGOLAB_EDITOR` | External editor command | system default |
+
+### Configuration file (`.malgolab.json`)
+
+```json
+{
+    "compiler": "g++",
+    "cpp_std": "c++17",
+    "timeout": 5,
+    "template": "default",
+    "editor": ""
+}
+```
+
+## Data Directory Layout
+
+```
+data/
+  problems/       Fetched problem statements and sample .in/.out files
+    cf/
+      1234A/
+        1.in, 1.out, 2.in, 2.out, info.json
+    at/
+      abc300_a/
+        ...
+  solutions/      Your solution code and notes
+    cf/
+      1234A/
+        sol.cpp, brute.cpp, gen.cpp, notes.md
+  cache/          Online judge API cache
+  temp/           Compilation and judge artifacts (auto-cleaned)
+  failures/       Saved inputs from failed stress-test rounds
+  problems.db     SQLite database of problems and submissions
+```
+
+The data directory can be relocated via the `MALGOLAB_DATA_DIR`
+environment variable. This is useful for keeping your code separate
+from the tool's working data.
+
+## Custom Templates
+
+Place `.cpp` files in the `templates/` directory. The following
+placeholders are substituted at generation time:
+
+| Placeholder | Replaced with |
+|---|---|
+| `$OJ$` | Online judge identifier (e.g. `cf`, `at`) |
+| `$PID$` | Problem ID (e.g. `1234A`, `abc300_a`) |
+| `$TITLE$` | Problem title |
+| `$DATE$` | Current date (`YYYY-MM-DD`) |
+
+Example `templates/icpc.cpp`:
+
+```cpp
+// ICPC-style template
+#include <bits/stdc++.h>
+using namespace std;
+using ll = long long;
+
+void solve() {
+    // TODO
+}
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    int t = 1;
+    // cin >> t;
+    while (t--) solve();
+    return 0;
+}
+```
+
+Use it with:
 
 ```powershell
-malgolab judge cf 1000A
+malgolab init cf 1234A --template icpc
 ```
 
-按路径指定：
+## C++ Components
 
-```powershell
-malgolab judge --path data\solutions\cf\1000A
-malgolab judge --src data\solutions\cf\1000A\sol.cpp --test-dir data\problems\cf\1000A
-```
-
-### `check`：对拍
-
-按 OJ + PID（默认寻找 `sol.cpp`、`brute.cpp`、`gen.cpp`）：
-
-```powershell
-malgolab check cf 1000A --rounds 100 --timeout 2
-```
-
-手动指定文件：
-
-```powershell
-malgolab check --solver path\to\sol.cpp --brute path\to\brute.cpp --gen path\to\gen.cpp
-```
-
-### `contest`：比赛批量操作
-
-```powershell
-malgolab contest init cf <contest_id>
-malgolab contest fetch cf <contest_id>
-```
-
-### `edit`：快速打开文件
-
-```powershell
-malgolab edit cf 1000A
-malgolab edit cf 1000A --brute
-malgolab edit cf 1000A --note
-```
-
-## C++ 组件构建
-
-Windows（PowerShell）：
+The `cpp/` directory contains a segment tree library and data
+generators used for stress testing. Build with:
 
 ```powershell
 .\scripts\build_cpp.ps1
 ```
 
-该脚本会在 `cpp/build/` 下执行 CMake 配置与编译。
+The Python wrapper at `python/Malgolab/cpp_wrapper/` provides a
+convenient interface to the compiled segment tree binary.
 
-## 项目结构（核心目录）
-
-```text
-Malgolab/
-├── cpp/                       # C++ 算法与可执行程序
-├── python/Malgolab/           # Python 包与 CLI
-│   ├── cli/commands/          # init/fetch/judge/check/contest/edit
-│   ├── judge/                 # 评测、爬取、记录模块
-│   └── cpp_wrapper/           # C++ 功能的 Python 封装
-├── data/
-│   ├── problems/              # 抓取下来的题目与样例
-│   ├── solutions/             # 题解代码与笔记
-│   ├── cache/                 # 缓存
-│   └── temp/                  # 临时评测目录
-├── scripts/                   # 构建/清理脚本
-├── templates/                 # 代码模板
-└── pyproject.toml             # 项目与入口配置
-```
-
-## 开发与测试
-
-仓库根目录有示例测试脚本：
+## Testing
 
 ```powershell
-python test_judge.py
-python test_multi.py
-python test_record.py
+python test_judge.py     # Single test case compilation & judging
+python test_multi.py     # Multi-testcase batch judging
+python test_record.py    # Database submission recording
 ```
 
-如果你安装了 `pytest`，也可以直接运行：
+## License
 
-```powershell
-pytest
-```
+MIT License. See `LICENSE` for details.
 
-## 许可证
-
-本项目采用 `MIT License`，详见 `LICENSE`。

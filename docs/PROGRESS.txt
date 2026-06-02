@@ -1,18 +1,29 @@
 Progress Log
 2026-06-02
 
-v1.1.0 (current)
-- Refactored models.py: lazy DB init, WAL mode, removed redundant init_db calls.
-- Fixed local_judge.py: proper CE/RE/TLE status reporting, compile inside try block.
-- Extracted shared utilities: resolve_timeout, STATUS_COLORS, print_results -> cli/utils.py.
-- Deduplicated judge.py and judge_id.py (removed ~120 lines of copy-paste).
-- Removed module-level side effects in checker.py, segment_tree.py.
-- Deleted dead code in edit.py, debug comments in crawler.py.
-- Unified all CLI messages to English, professional error formatting.
-- Version reset to 1.1.0 (was prematurely bumped).
+v2.0.0 (current) -- Production Release
+- Professional English README with full command reference, config docs,
+  data layout, and custom template guide.
+- Configuration system: .malgolab.json + environment variable overrides.
+- Shell completions: `malgolab config init` for project scaffolding.
+- All 10 CLI commands documented and tested.
 
-Planned:
-v1.2.0 - Parallel test execution, diff viewer, timeout optimization
-v1.3.0 - AtCoder support
-v1.4.0 - Contest workflow enhancement + watch mode
-v1.5.0 - Config file, shell completions, README -> v2.0.0
+v1.4.0
+- Watch mode: auto-rejudge on sol.cpp changes.
+- contest status: progress overview per problem.
+- contest judge: batch judge with summary.
+
+v1.3.0
+- AtCoder support: fetch, contest, and init commands.
+- atcoder.py crawler with sample extraction and metadata scraping.
+
+v1.2.0
+- Unified diff display for WA cases via difflib.
+- Per-test timing (ms) and max/avg performance summary.
+
+v1.1.0
+- Major refactor: deduplicated ~200 lines across CLI commands.
+- Lazy DB initialization with WAL mode.
+- Centralized utilities (resolve_timeout, STATUS_COLORS, print_results).
+- All CLI output normalized to English.
+- Removed dead code and unprofessional copy.
