@@ -3,23 +3,35 @@
 import click
 from ...judge.solution import generate_solution
 from ...judge.models import add_problem, get_problem_by_oj_pid
-from ..utils import open_file, parse_cf_pid, solution_file
+from ..utils import open_file, parse_cf_pid, parse_at_pid, solution_file
 
 
 def _get_title(oj, pid):
-    """Resolve problem title: DB first, then online lookup for CF."""
-    if oj.lower() == 'cf':
+    """Resolve problem title: DB first, then online lookup."""
+    # try local DB first
+    row = get_problem_by_oj_pid(oj, pid)
+    if row and row[3]:
+        return row[3]
+
+    # try online
+    oj_lower = oj.lower()
+    if oj_lower == 'cf':
         parsed = parse_cf_pid(pid)
         if parsed:
-            # try local DB
-            row = get_problem_by_oj_pid(oj, pid)
-            if row and row[3]:
-                return row[3]
-            # try online
             from ...judge.crawler import fetch_cf_problem_meta
             try:
                 meta = fetch_cf_problem_meta(parsed[0], parsed[1])
                 return meta.get('title', '')
+            except Exception:
+                pass
+    elif oj_lower in ('at', 'ac'):
+        parsed = parse_at_pid(pid)
+        if parsed:
+            from ...judge.atcoder import at_get_title
+            try:
+                title = at_get_title(parsed[0], parsed[1])
+                if title:
+                    return title
             except Exception:
                 pass
     return ''

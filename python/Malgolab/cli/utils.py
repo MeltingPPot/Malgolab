@@ -8,6 +8,7 @@ from pathlib import Path
 from ..paths import solutions_dir, problems_dir
 
 CF_PID_PATTERN = re.compile(r'(\d+)([A-Za-z]+)(\d*)')
+AT_PID_PATTERN = re.compile(r'^([a-z]+[0-9]+)_([a-z0-9]+)$')
 
 STATUS_COLORS = {
     "AC": "green",
@@ -41,6 +42,17 @@ def parse_cf_pid(pid: str):
     contest_id = int(match.group(1))
     problem_index = match.group(2).upper() + match.group(3)
     return contest_id, problem_index
+
+
+def parse_at_pid(pid: str):
+    """Parse an AtCoder problem ID like 'abc300_a'.
+
+    Returns (contest_id: str, problem_suffix: str) or None.
+    """
+    match = AT_PID_PATTERN.fullmatch(pid.lower())
+    if match:
+        return match.group(1), match.group(2)
+    return None
 
 
 def solution_dir(oj: str, pid: str) -> Path:
