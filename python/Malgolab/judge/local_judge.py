@@ -1,3 +1,4 @@
+import difflib
 import os
 import sys
 import tempfile
@@ -24,14 +25,11 @@ def compile_cpp(src_path, output_exe, std=None, compiler=None):
         raise RuntimeError(f"CE: {detail}" if detail else "CE")
      
 def run_program(exe_path, input_path, timeout=5):
-    '''
-    run_program 的 Docstring
-    运行可执行文件，传入输入文件，返回标准输出
-    :param exe_path: 可执行文件路径
-    :param input_path: 输入文件路径
-    :raises RuntimeError: 如果超时或运行时错误
-    :return: 程序输出的字符串以及运行时间
-    '''
+    """Run an executable with a given input file.
+
+    Returns (stdout: str, elapsed_ms: float).
+    Raises RuntimeError("TLE") on timeout, RuntimeError("RE") on non-zero exit.
+    """
     with open(input_path, 'r') as f:
         start = time.perf_counter()
         try:
@@ -76,46 +74,55 @@ def _fallback_standards(std):
     return []
 
 def compare_outputs(out, ans, ignore_whitespace=True):
-    """
-    compare_outputs 的 Docstring
-    比较程序输出与标准答案
-    :param out: 程序输出字符串
-    :param ans: 标准答案字符串
-    :param ignore_whitespace: 是否忽略末尾空格和空行
+    """Compare program output with expected answer.
+
+    When ignore_whitespace is True, trailing whitespace on each line
+    and leading/trailing blank lines are stripped.
     """
     if ignore_whitespace:
         out = '\n'.join(line.rstrip() for line in out.splitlines()).strip()
-        # 删除每行末尾空白字符，重新组合后删除首尾空白字符
         ans = '\n'.join(line.rstrip() for line in ans.splitlines()).strip()
-    return out==ans
+    return out == ans
+
+def _compute_diff(expected, actual, context_lines=3):
+    """Return a unified diff string between expected and actual output."""
+    expected_lines = expected.splitlines(keepends=True)
+    actual_lines = actual.splitlines(keepends=True)
+    diff = difflib.unified_diff(
+        expected_lines, actual_lines,
+        fromfile='expected', tofile='actual',
+        n=context_lines)
+    return ''.join(diff)
+
 
 def judge_case(exe_path, input_file, answer_file, problem_id=None, timeout=5):
     """Run a compiled executable against one test case.
 
-    Returns (passed: bool, status: str).
+    Returns (passed: bool, status: str, elapsed_ms: float, diff: str or None).
     """
     try:
         output, elapsed = run_program(exe_path, input_file, timeout=timeout)
     except RuntimeError as exc:
-        status = str(exc)  # "TLE" or "RE"
+        status = str(exc)
         if problem_id is not None:
             record_submission(problem_id, status)
-        return False, status
+        return False, status, 0, None
 
-    with open(answer_file, 'r', encoding='utf-8') as f:
-        answer = f.read()
+    answer = Path(answer_file).read_text(encoding='utf-8')
 
     if compare_outputs(output, answer):
         status = "AC"
         passed = True
+        diff = None
     else:
         status = "WA"
         passed = False
+        diff = _compute_diff(answer, output)
 
     if problem_id is not None:
         record_submission(problem_id, status, time_ms=int(elapsed))
 
-    return passed, status
+    return passed, status, elapsed, diff
 
 
 def judge_one(src_file, input_file, answer_file, problem_id=None, timeout=5):
@@ -132,13 +139,17 @@ def judge_one(src_file, input_file, answer_file, problem_id=None, timeout=5):
             if problem_id is not None:
                 record_submission(problem_id, "CE")
             return False, "CE"
-        return judge_case(exe_path, input_file, answer_file,
-                          problem_id=problem_id, timeout=timeout)
+        ok, status, _, _ = judge_case(
+            exe_path, input_file, answer_file,
+            problem_id=problem_id, timeout=timeout)
+        return ok, status
+
+
 def judge_all(src_file, test_dir, problem_id=None, timeout=5):
     """Compile source and judge all .in/.out test cases in a directory.
 
     Returns (passed: int, total: int, overall_status: str,
-             results: list of (name, passed, status)).
+             results: list of (name, passed, status, elapsed_ms, diff)).
     """
     test_dir = Path(test_dir)
     if not test_dir.exists():
@@ -166,8 +177,9 @@ def judge_all(src_file, test_dir, problem_id=None, timeout=5):
             if not ans.exists():
                 continue
             total += 1
-            ok, status = judge_case(exe_path, inp, ans, timeout=timeout)
-            results.append((base, ok, status))
+            ok, status, elapsed, diff = judge_case(
+                exe_path, inp, ans, timeout=timeout)
+            results.append((base, ok, status, elapsed, diff))
             if ok:
                 passed += 1
 

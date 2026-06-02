@@ -76,8 +76,30 @@ def resolve_timeout(test_dir, cli_timeout=None):
 
 
 def print_results(results):
-    """Print per-testcase results with colors."""
-    for name, ok, stat in results:
+    """Print per-testcase results with colors, timing, and WA diffs."""
+    import click
+    times = []
+    for entry in results:
+        if len(entry) == 3:
+            name, ok, stat = entry
+            elapsed = 0.0
+            diff = None
+        elif len(entry) == 5:
+            name, ok, stat, elapsed, diff = entry
+        else:
+            name, ok, stat = entry[0], entry[1], entry[2]
+            elapsed = entry[3] if len(entry) > 3 else 0.0
+            diff = entry[4] if len(entry) > 4 else None
+
         color = STATUS_COLORS.get(stat, "white")
-        import click
-        click.secho(f"  {name}: {stat}", fg=color)
+        time_str = f" ({elapsed:.0f} ms)" if elapsed else ""
+        click.secho(f"  {name}: {stat}{time_str}", fg=color)
+        if diff:
+            click.secho(diff, fg="yellow")
+        if elapsed:
+            times.append(elapsed)
+
+    if times:
+        click.echo(
+            f"  Time: max {max(times):.0f} ms, "
+            f"avg {sum(times) / len(times):.0f} ms")

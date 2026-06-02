@@ -48,9 +48,12 @@ with TemporaryDirectory() as tmpdir:
     }
 
     # 输出每个测试点的结果
-    for name, ok, stat in results:
+    for entry in results:
+        name, ok, stat = entry[0], entry[1], entry[2]
+        elapsed = entry[3] if len(entry) > 3 else 0.0
         color = color_map.get(stat, Fore.WHITE)
-        print(f"  {name}: {color + stat + Style.RESET_ALL}")
+        time_str = f" ({elapsed:.0f} ms)" if elapsed else ""
+        print(f"  {name}: {color + stat + Style.RESET_ALL}{time_str}")
 
     # 可选：查询提交统计
     stats = get_problem_stats(problem_id)
