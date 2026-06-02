@@ -1,136 +1,114 @@
-# python/Malgolab/cli/commands/judge.py
+"""judge command - evaluate solutions against test cases."""
+
 import click
 from pathlib import Path
 from ...judge.local_judge import judge_all
+from ..utils import (
+    solution_file, problem_dir, resolve_timeout, print_results,
+    STATUS_COLORS)
+
+
+def _auto_locate_test_dir(path):
+    """Try to infer test directory from a solution path."""
+    # check for 'data' subdir
+    candidate = path / 'data' if path.is_dir() else path.parent / 'data'
+    if candidate.exists():
+        return candidate
+    # try extracting oj/pid from path
+    for marker in ('solutions',):
+        parts = list(path.parts)
+        if marker in parts:
+            idx = parts.index(marker)
+            if len(parts) > idx + 2:
+                auto = problem_dir(parts[idx + 1], parts[idx + 2])
+                if auto.exists():
+                    return auto
+    return None
+
+
+def _do_judge(src_file, test_dir, problem_id, timeout):
+    """Core judge logic shared across modes."""
+    test_dir = Path(test_dir)
+    timeout_sec = resolve_timeout(test_dir, timeout)
+    passed, total, status, results = judge_all(
+        src_file, test_dir, problem_id=problem_id, timeout=timeout_sec)
+    click.echo(f"Passed {passed}/{total}  [{status}]")
+    print_results(results)
+    return status
+
 
 @click.command()
-@click.option('--path', help='解题代码文件路径或包含 sol.cpp 的目录（与 --src 互斥）')
-@click.option('--src', help='解题代码文件路径（与 --path 互斥）')
-@click.option('--test-dir', help='测试数据目录')
-@click.option('--problem-id', type=int, help='题目ID，用于记录提交结果')
+@click.option('--path', help='Solution file or directory containing sol.cpp')
+@click.option('--src', help='Solution source file path')
+@click.option('--test-dir', help='Directory with .in/.out test cases')
+@click.option('--problem-id', type=int, help='Problem ID for recording result')
+@click.option('--timeout', type=float, help='Timeout in seconds')
 @click.argument('oj_pid', nargs=-1)
-def judge(path, src, test_dir, problem_id, oj_pid):
-    """评测解题代码。可通过 OJ PID 自动定位，或使用 --path/--src 指定文件。"""
-    # 处理 OJ PID 自动定位
+def judge(path, src, test_dir, problem_id, timeout, oj_pid):
+    """Evaluate a solution against sample tests.
+
+    Can auto-locate files via OJ PID, or use --path/--src and --test-dir.
+    """
+    # --- OJ PID mode ---
     if oj_pid:
         if len(oj_pid) != 2:
-            click.echo("错误：如果使用 OJ PID，应同时提供 OJ 和 PID，例如 'cf 1234A'", err=True)
+            click.echo("Error: provide both OJ and PID, e.g. 'cf 1234A'",
+                       err=True)
             return
-        oj, pid = oj_pid[0], oj_pid[1]
-        project_root = Path(__file__).resolve().parents[4]
-        src_file = project_root / 'data' / 'solutions' / oj / pid / 'sol.cpp'
+        oj, pid = oj_pid
+        src_file = solution_file(oj, pid, 'sol.cpp')
         if not src_file.exists():
-            click.echo(f"错误：解题文件 {src_file} 不存在，请先运行 'malgolab init {oj} {pid}'", err=True)
+            click.echo(
+                f"Error: solution file not found: {src_file}\n"
+                f"Run 'malgolab init {oj} {pid}' first.", err=True)
             return
-        if test_dir is None:
-            test_dir = project_root / 'data' / 'problems' / oj / pid
-            if not test_dir.exists():
-                click.echo(f"错误：样例目录 {test_dir} 不存在，请先运行 'malgolab fetch {oj} {pid}'", err=True)
-                return
-        click.echo(f"评测代码：{src_file}")
-        click.echo(f"样例目录：{test_dir}")
-        try:
-            passed, total, status, results = judge_all(src_file, test_dir, problem_id=problem_id)
-        except Exception as e:
-            click.echo(f"评测失败：{e}", err=True)
+        test_dir = test_dir or problem_dir(oj, pid)
+        if not Path(test_dir).exists():
+            click.echo(
+                f"Error: test directory not found: {test_dir}\n"
+                f"Run 'malgolab fetch {oj} {pid}' first.", err=True)
             return
-        click.echo(f"通过 {passed}/{total}，整体状态：{status}")
-        color_map = {
-            "AC": "green",
-            "WA": "red",
-            "TLE": "yellow",
-            "RE": "magenta",
-            "CE": "cyan",
-            "NO_TEST": "white",
-        }
-        for name, ok, stat in results:
-            color = color_map.get(stat, "white")
-            click.secho(f"  {name}: {stat}", fg=color)
-        return
+        click.echo(f"Source : {src_file}")
+        click.echo(f"Tests  : {test_dir}")
+        return _do_judge(src_file, test_dir, problem_id, timeout)
 
-    # 没有使用 OJ PID，则使用路径模式
-    if path is None and src is None:
-        click.echo("错误：必须指定 --path、--src 或 OJ PID", err=True)
+    # --- Path / Src mode ---
+    if not path and not src:
+        click.echo("Error: specify OJ PID, --path, or --src", err=True)
         return
     if path and src:
-        click.echo("错误：不能同时指定 --path 和 --src", err=True)
+        click.echo("Error: cannot use both --path and --src", err=True)
         return
 
-    # 处理 --path
     if path:
-        path = Path(path)
-        if path.is_file():
-            src_file = path
-            if test_dir is None:
-                test_dir = path.parent / 'data'
-                if not test_dir.exists():
-                    # 尝试从父目录提取 oj/pid
-                    parts = path.parent.parts
-                    if 'solutions' in parts:
-                        idx = parts.index('solutions')
-                        if len(parts) > idx + 2:
-                            oj = parts[idx + 1]
-                            pid = parts[idx + 2]
-                            auto_dir = Path('data') / 'problems' / oj / pid
-                            if auto_dir.exists():
-                                test_dir = auto_dir
-                if not test_dir or not test_dir.exists():
-                    click.echo("错误：未指定测试目录，且无法自动推断。请使用 --test-dir 指定。", err=True)
-                    return
+        p = Path(path)
+        if p.is_file():
+            src_file = p
+            test_dir = test_dir or _auto_locate_test_dir(p)
         else:
-            src_file = path / 'sol.cpp'
+            src_file = p / 'sol.cpp'
             if not src_file.exists():
-                click.echo(f"错误：在 {path} 下未找到 sol.cpp", err=True)
+                click.echo(f"Error: sol.cpp not found in {p}", err=True)
                 return
-            if test_dir is None:
-                test_dir = path / 'data'
-                if not test_dir.exists():
-                    # 尝试从路径中提取 oj/pid
-                    parts = path.parts
-                    if 'solutions' in parts:
-                        idx = parts.index('solutions')
-                        if len(parts) > idx + 2:
-                            oj = parts[idx + 1]
-                            pid = parts[idx + 2]
-                            auto_dir = Path('data') / 'problems' / oj / pid
-                            if auto_dir.exists():
-                                test_dir = auto_dir
-                if not test_dir or not test_dir.exists():
-                    click.echo("错误：未指定测试目录，且无法自动推断。请使用 --test-dir 指定。", err=True)
-                    return
-    else:  # 使用 --src
+            test_dir = test_dir or _auto_locate_test_dir(p)
+    else:
         src_file = Path(src)
         if not src_file.exists():
-            click.echo(f"错误：解题代码文件 {src_file} 不存在", err=True)
+            click.echo(f"Error: file not found: {src}", err=True)
             return
-        if test_dir is None:
-            click.echo("错误：当使用 --src 时，必须同时指定 --test-dir", err=True)
+        if not test_dir:
+            click.echo("Error: --test-dir is required with --src", err=True)
             return
         test_dir = Path(test_dir)
 
-    if not test_dir.exists():
-        click.echo(f"错误：测试目录 {test_dir} 不存在", err=True)
+    if not test_dir or not Path(test_dir).exists():
+        click.echo("Error: could not determine test directory, "
+                   "use --test-dir", err=True)
         return
 
-    click.echo(f"评测代码：{src_file}")
-    click.echo(f"样例目录：{test_dir}")
-
+    click.echo(f"Source : {src_file}")
+    click.echo(f"Tests  : {test_dir}")
     try:
-        passed, total, status, results = judge_all(src_file, test_dir, problem_id=problem_id)
-    except Exception as e:
-        click.echo(f"评测失败：{e}", err=True)
-        return
-
-    click.echo(f"通过 {passed}/{total}，整体状态：{status}")
-
-    color_map = {
-        "AC": "green",
-        "WA": "red",
-        "TLE": "yellow",
-        "RE": "magenta",
-        "CE": "cyan",
-        "NO_TEST": "white",
-    }
-    for name, ok, stat in results:
-        color = color_map.get(stat, "white")
-        click.secho(f"  {name}: {stat}", fg=color)
+        _do_judge(src_file, test_dir, problem_id, timeout)
+    except Exception as exc:
+        click.echo(f"Judge failed: {exc}", err=True)

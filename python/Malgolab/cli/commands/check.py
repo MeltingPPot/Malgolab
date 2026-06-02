@@ -1,64 +1,61 @@
+"""check command - stress-test solver against brute-force."""
+
 import click
 from pathlib import Path
 from ...judge.checker import check_with_sources
+from ..utils import solution_dir, solution_file
+
 
 @click.command()
-@click.option('--solver', help='正解源文件路径（优先自动推断）')
-@click.option('--brute', help='暴力源文件路径（优先自动推断）')
-@click.option('--gen', help='数据生成器源文件路径')
-@click.option('--rounds', default=100, help='对拍轮数', show_default=True)
-@click.option('--timeout', default=2, help='每个程序运行超时', show_default=True)
+@click.option('--solver', help='Path to solver source (auto-inferred if OJ PID)')
+@click.option('--brute', help='Path to brute-force source')
+@click.option('--gen', help='Path to test generator source')
+@click.option('--rounds', default=100, show_default=True,
+              help='Maximum number of test rounds')
+@click.option('--timeout', default=2, show_default=True,
+              help='Per-program timeout in seconds')
 @click.argument('oj_pid', nargs=-1)
 def check(solver, brute, gen, rounds, timeout, oj_pid):
-    '''
-    check 的 Docstring
-    对拍正解和暴力
-    '''
+    """Stress-test: compare solver output vs brute-force on random inputs."""
     if oj_pid:
-        if len(oj_pid) !=2:
-            click.echo("错误：如果使用 OJ PID，应同时提供 OJ 和 PID，例如 'cf 1234A'", err=True)
+        if len(oj_pid) != 2:
+            click.echo("Error: provide both OJ and PID, e.g. 'cf 1234A'",
+                       err=True)
             return
-        oj, pid = oj_pid[0], oj_pid[1]
-        project_rt = Path(__file__).resolve().parents[4]
-        sol_path = project_rt / 'data' / 'solutions' / oj / pid / 'sol.cpp'
-        brute_path = project_rt / 'data' / 'solutions' / oj / pid / 'brute.cpp'
-         # 如果用户没有显式指定生成器，可以尝试在解题目录下找 gen.cpp
+        oj, pid = oj_pid
+        sol_path = solution_file(oj, pid, 'sol.cpp')
+        brute_path = solution_file(oj, pid, 'brute.cpp')
         if gen is None:
-            gen_path = project_rt / 'data' / 'solutions' / oj / pid / 'gen.cpp'
-            if gen_path.exists():
-                gen = gen_path
-            else:
-                click.echo("错误：未指定生成器，且解题目录下没有gen.cpp", err=True)
+            gen_path = solution_dir(oj, pid) / 'gen.cpp'
+            if not gen_path.exists():
+                click.echo(
+                    "Error: no generator specified and no gen.cpp found "
+                    "in solution directory", err=True)
                 return
         else:
             gen_path = Path(gen)
     else:
-         # 没有提供 OJ PID，则直接使用命令行指定的路径
-         if solver is None or brute is None or gen is None:
-             click.echo("错误：当不使用oj_pid时，必须指定--solver, --brute, --gen", err=True)
-             return
-         sol_path = Path(solver)
-         brute_path = Path(brute)
-         gen_path = Path(gen)
-
-    if not sol_path.exists():
-        click.echo(f"错误：正解文件{sol_path}不存在", err=True)
-        return
-    if not brute_path.exists():
-        click.echo(f"错误：暴力文件{brute_path}不存在", err=True)
-        return
-    if not gen_path.exists():
-        click.echo(f"错误：数据生成器文件{gen_path}不存在", err=True)
-        return
-
-    click.echo("开始对拍。。。")
-    try:
-        result = check_with_sources(sol_path, brute_path, gen_path, rounds, timeout)
-        if result:
-            click.secho(f"对拍通过{rounds}轮,未发现差异", fg="green")
+        if not (solver and brute and gen):
+            click.echo(
+                "Error: --solver, --brute, and --gen are required "
+                "when not using OJ PID", err=True)
             return
-    except Exception as e:
-        click.echo(f"对拍过程出错：{e}", err=True)
-        return
+        sol_path = Path(solver)
+        brute_path = Path(brute)
+        gen_path = Path(gen)
+
+    for label, p in [("Solver", sol_path), ("Brute", brute_path),
+                     ("Generator", gen_path)]:
+        if not p.exists():
+            click.echo(f"Error: {label} file not found: {p}", err=True)
+            return
+
+    click.echo(f"Stress test: {rounds} rounds, timeout={timeout}s")
+    try:
+        if check_with_sources(sol_path, brute_path, gen_path,
+                              rounds, timeout):
+            click.secho(f"All {rounds} rounds passed.", fg="green")
+    except RuntimeError as exc:
+        click.echo(str(exc), err=True)
         
 

@@ -1,29 +1,30 @@
-import click 
-import re
+"""fetch command - download problem statements and samples."""
+
+import click
 from ...judge.crawler import fetch_and_save_cf
+from ..utils import parse_cf_pid
+
 
 @click.command()
 @click.argument('oj')
 @click.argument('pid')
 def fetch(oj, pid):
-    '''
-    fetch 的 Docstring
-    抓取题目信息并保存（目前仅支持 Codeforces）
-    '''
+    """Download problem metadata and samples (currently Codeforces only)."""
     if oj.lower() != 'cf':
-        click.echo("错误：目前仅支持 CF",err=True)
+        click.echo("Error: currently only Codeforces is supported", err=True)
         return
-    
-    match = re.fullmatch(r'(\d+)([A-Za-z]+)(\d*)', pid)
-    if not match:
-        click.echo("错误：pid格式应为数字加字母（可选数字）", err=True)
+
+    parsed = parse_cf_pid(pid)
+    if not parsed:
+        click.echo("Error: PID format should be digits + letters "
+                   "(e.g. 1234A)", err=True)
         return
-    contest_id = int(match.group(1))
-    problem_index = match.group(2).upper() + match.group(3)
-    click.echo(f"正在抓取Codeforces：{contest_id} {problem_index}...")
+
+    contest_id, problem_index = parsed
+    click.echo(f"Fetching Codeforces {contest_id}{problem_index} ...")
     try:
         problem_id = fetch_and_save_cf(contest_id, problem_index)
-        click.echo(f"抓取成功！本地ID：{problem_id}")
-    except Exception as e:
-        click.echo(f"抓取失败：{e}", err=True)
+        click.echo(f"Success  local ID: {problem_id}")
+    except Exception as exc:
+        click.echo(f"Fetch failed: {exc}", err=True)
 

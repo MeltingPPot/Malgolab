@@ -1,50 +1,39 @@
-# python/Malgolab/cli/commands/judge_id.py
+"""judge-id command - evaluate by OJ and problem ID."""
+
 import click
-from pathlib import Path
 from ...judge.local_judge import judge_all
-from ...judge.models import get_all_problems
+from ..utils import solution_file, problem_dir, resolve_timeout, print_results
+
 
 @click.command()
 @click.argument('oj')
 @click.argument('pid')
-@click.option('--problem-id', type=int, help='题目ID（可选，用于记录提交）')
-def judge_id(oj, pid, problem_id):
-    """通过 OJ 和题目 ID 评测解题代码（自动定位文件和样例）"""
-    project_root = Path(__file__).resolve().parents[4]
-
-    # 构建解题文件路径
-    src_file = project_root / 'data' / 'solutions' / oj / pid / 'sol.cpp'
+@click.option('--problem-id', type=int, help='Problem ID for recording')
+@click.option('--timeout', type=float, help='Timeout in seconds')
+def judge_id(oj, pid, problem_id, timeout):
+    """Evaluate a solution by OJ and problem ID (auto-locates files)."""
+    src_file = solution_file(oj, pid, 'sol.cpp')
     if not src_file.exists():
-        click.echo(f"错误：解题文件 {src_file} 不存在", err=True)
-        click.echo("请先运行 'malgolab init' 创建解题模板", err=True)
+        click.echo(f"Error: solution file not found: {src_file}\n"
+                   "Run 'malgolab init' first.", err=True)
         return
 
-    # 构建样例目录（默认）
-    test_dir = project_root / 'data' / 'problems' / oj / pid
+    test_dir = problem_dir(oj, pid)
     if not test_dir.exists():
-        click.echo(f"错误：样例目录 {test_dir} 不存在", err=True)
-        click.echo("请先运行 'malgolab fetch' 抓取题目样例", err=True)
+        click.echo(f"Error: test directory not found: {test_dir}\n"
+                   "Run 'malgolab fetch' first.", err=True)
         return
 
-    click.echo(f"评测代码：{src_file}")
-    click.echo(f"样例目录：{test_dir}")
+    click.echo(f"Source : {src_file}")
+    click.echo(f"Tests  : {test_dir}")
 
+    timeout_sec = resolve_timeout(test_dir, timeout)
     try:
-        passed, total, status, results = judge_all(src_file, test_dir, problem_id=problem_id)
-    except Exception as e:
-        click.echo(f"评测失败：{e}", err=True)
+        passed, total, status, results = judge_all(
+            src_file, test_dir, problem_id=problem_id, timeout=timeout_sec)
+    except Exception as exc:
+        click.echo(f"Judge failed: {exc}", err=True)
         return
 
-    click.echo(f"通过 {passed}/{total}，整体状态：{status}")
-
-    color_map = {
-        "AC": "green",
-        "WA": "red",
-        "TLE": "yellow",
-        "RE": "magenta",
-        "CE": "cyan",
-        "NO_TEST": "white",
-    }
-    for name, ok, stat in results:
-        color = color_map.get(stat, "white")
-        click.secho(f"  {name}: {stat}", fg=color)
+    click.echo(f"Passed {passed}/{total}  [{status}]")
+    print_results(results)
