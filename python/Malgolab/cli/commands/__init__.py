@@ -7,3 +7,4 @@ from . import judge_id
 from . import check
 from . import clean
 from . import watch
+from . import config_cmd

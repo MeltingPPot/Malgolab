@@ -7,11 +7,13 @@ import subprocess as sbs
 from pathlib import Path
 from .models import record_submission
 from ..paths import temp_dir, ensure_dir
+from ..config import get_config
 
 def compile_cpp(src_path, output_exe, std=None, compiler=None):
     """Compile a C++ source file. Raises RuntimeError on failure."""
-    compiler = compiler or os.getenv("MALGOLAB_CXX", "g++")
-    std = std or os.getenv("MALGOLAB_CPP_STD", "c++17")
+    cfg = get_config()
+    compiler = compiler or cfg.get("compiler", "g++")
+    std = std or cfg.get("cpp_std", "c++17")
     result = _run_compile(compiler, std, src_path, output_exe)
     if result.returncode != 0 and _is_std_unsupported(result.stderr, std):
         for fallback in _fallback_standards(std):

@@ -2,7 +2,7 @@
 import click
 from Malgolab import __version__
 from .commands import (init, fetch, judge, edit, contest, judge_id,
-                       check, clean, watch)
+                       check, clean, watch, config_cmd)
 
 @click.version_option(version=__version__, prog_name="malgolab")
 @click.group()
@@ -19,6 +19,7 @@ cli.add_command(judge_id.judge_id)
 cli.add_command(check.check)
 cli.add_command(clean.clean)
 cli.add_command(watch.watch)
+cli.add_command(config_cmd.config)
 
 if __name__ == '__main__':
     cli()
