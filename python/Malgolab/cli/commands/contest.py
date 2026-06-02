@@ -100,3 +100,101 @@ def fetch(oj, contest_id):
             click.echo("  OK")
         except Exception as exc:
             click.echo(f"  Failed: {exc}", err=True)
+
+
+@contest.command()
+@click.argument('oj')
+@click.argument('contest_id')
+def status(oj, contest_id):
+    """Show solution and test status for each problem in a contest."""
+    from ...judge.models import get_problem_by_oj_pid, get_problem_stats
+    from ..utils import solution_file, problem_dir
+
+    oj_lower = oj.lower()
+
+    try:
+        if oj_lower == 'cf':
+            problems = _cf_problems(contest_id)
+        elif oj_lower in ('at', 'ac'):
+            problems = _at_problems(contest_id)
+        else:
+            click.echo(f"Error: unsupported OJ '{oj}'", err=True)
+            return
+    except Exception as exc:
+        click.echo(f"Failed to fetch contest problems: {exc}", err=True)
+        return
+
+    click.echo(f"{'Problem':<14} {'Sol':<5} {'Tests':<6} {'Last':<8}")
+    click.echo("-" * 35)
+
+    for pid, title in problems:
+        sol_exists = ("Yes" if solution_file(oj, pid, 'sol.cpp').exists()
+                      else "No")
+        test_exists = ("Yes" if problem_dir(oj, pid).exists()
+                       else "No")
+
+        last_status = "-"
+        row = get_problem_by_oj_pid(oj, pid)
+        if row:
+            st = get_problem_stats(row[0])
+            if st:
+                # Show the most frequent status
+                last_status = max(st, key=st.get)
+
+        click.echo(
+            f"{pid:<14} {sol_exists:<5} {test_exists:<6} {last_status:<8}")
+
+
+@contest.command()
+@click.argument('oj')
+@click.argument('contest_id')
+@click.option('--timeout', type=float, help='Timeout in seconds')
+def judge(oj, contest_id, timeout):
+    """Batch judge all solutions in a contest."""
+    from ...judge.local_judge import judge_all
+    from ..utils import solution_file, problem_dir, resolve_timeout, \
+        print_results, STATUS_COLORS
+
+    oj_lower = oj.lower()
+
+    try:
+        if oj_lower == 'cf':
+            problems = _cf_problems(contest_id)
+        elif oj_lower in ('at', 'ac'):
+            problems = _at_problems(contest_id)
+        else:
+            click.echo(f"Error: unsupported OJ '{oj}'", err=True)
+            return
+    except Exception as exc:
+        click.echo(f"Failed to fetch contest problems: {exc}", err=True)
+        return
+
+    overall_ac = 0
+    overall_total = 0
+
+    for pid, title in problems:
+        src_file = solution_file(oj, pid, 'sol.cpp')
+        test_dir = problem_dir(oj, pid)
+
+        if not src_file.exists():
+            click.echo(f"{pid}: SKIP (no sol.cpp)")
+            continue
+        if not test_dir.exists():
+            click.echo(f"{pid}: SKIP (no tests)")
+            continue
+
+        timeout_sec = resolve_timeout(test_dir, timeout)
+        try:
+            passed, total, status, results = judge_all(
+                src_file, test_dir, timeout=timeout_sec)
+        except Exception as exc:
+            click.echo(f"{pid}: ERROR ({exc})")
+            continue
+
+        color = STATUS_COLORS.get(status, "white")
+        click.secho(f"{pid}  {passed}/{total}  [{status}]", fg=color)
+        overall_ac += passed
+        overall_total += total
+
+    if overall_total > 0:
+        click.echo(f"\nTotal: {overall_ac}/{overall_total} passed")
