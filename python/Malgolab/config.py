@@ -6,6 +6,8 @@ Reads settings from:
 3. Built-in defaults
 """
 
+from __future__ import annotations
+
 import json
 import os
 from functools import lru_cache

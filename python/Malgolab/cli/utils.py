@@ -1,8 +1,13 @@
+"""CLI utility functions shared across commands."""
+
+from __future__ import annotations
+
 import json
 import os
 import re
 import subprocess
 import sys
+from functools import lru_cache
 from pathlib import Path
 
 from ..paths import solutions_dir, problems_dir
@@ -20,15 +25,15 @@ STATUS_COLORS = {
 }
 
 
+@lru_cache(maxsize=1)
 def _find_vscode() -> str | None:
-    """Try to locate a VS Code executable (Windows only)."""
+    """Try to locate a VS Code executable (Windows only).  Cached."""
     if not sys.platform.startswith('win'):
         return None
 
     # 1. check running VS Code process
     try:
-        import subprocess as _sp
-        result = _sp.run(
+        result = subprocess.run(
             ['powershell', '-NoProfile', '-Command',
              "(Get-Process -Name 'Code' -ErrorAction SilentlyContinue "
              "| Select-Object -First 1 -ExpandProperty Path)"],

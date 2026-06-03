@@ -110,12 +110,12 @@ def fetch_cf_samples(contest_id, problem_index):
     return samples, time_limit, memory_limit
 
 def parse_time_limit(text):
-    """从时间限制字符串中提取数值（秒），例如 "2 seconds" -> 2"""
+    """Extract seconds from a time-limit string, e.g. '2 seconds' -> 2."""
     match = re.search(r'(\d+(?:\.\d+)?)', text)
     return int(float(match.group(1))) if match else 0
 
 def parse_memory_limit(text):
-    """从内存限制字符串中提取数值（MB），例如 "256 MB" -> 256"""
+    """Extract MB from a memory-limit string, e.g. '256 MB' -> 256."""
     match = re.search(r'(\d+)', text)
     return int(match.group(1)) if match else 0
 

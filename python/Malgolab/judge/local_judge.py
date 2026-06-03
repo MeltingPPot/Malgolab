@@ -32,7 +32,7 @@ def run_program(exe_path, input_path, timeout=5):
     Returns (stdout: str, elapsed_ms: float).
     Raises RuntimeError("TLE") on timeout, RuntimeError("RE") on non-zero exit.
     """
-    with open(input_path, 'r') as f:
+    with open(input_path, 'r', encoding='utf-8') as f:
         start = time.perf_counter()
         try:
             result = sbs.run(

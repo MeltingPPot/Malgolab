@@ -4,6 +4,8 @@ Fetches problem statements, sample test cases, and metadata from
 https://atcoder.jp/ via HTML scraping (no official API available).
 """
 
+from __future__ import annotations
+
 import re
 import time
 
@@ -71,40 +73,51 @@ def fetch_at_problem(contest_id: str, problem_id: str):
             memory_limit = text.replace('Memory Limit:', '').strip()
 
     # --- Samples ---
-    samples = []
-    # AtCoder uses <pre> inside sections; Japanese labels vary.
-    # Search for sections containing "入力例"/"出力例" or English labels.
-    parts = soup.find_all('section')
-    # Another approach: find <h3> and grab next <pre>
+    # Collect all (label_text, pre_content) pairs from h3+pre sections
+    io_entries: list[tuple[str, str]] = []
     h3_tags = soup.find_all('h3')
     for h3 in h3_tags:
-        h3_text = h3.get_text(strip=True).lower()
-        if '入力例' in h3_text or 'input' in h3_text or 'sample input' in h3_text:
-            pre = h3.find_next('pre')
-            inp = pre.get_text('\n', strip=True) if pre else ''
-            # find corresponding output
-            next_h3 = pre.find_next('h3') if pre else None
-            out = ''
-            if next_h3:
-                out_pre = next_h3.find_next('pre')
-                if out_pre:
-                    out = out_pre.get_text('\n', strip=True)
-            samples.append((inp, out))
-        elif '出力例' in h3_text or 'output' in h3_text or 'sample output' in h3_text:
-            # handled together with input above
-            pass
+        label = h3.get_text(strip=True).lower()
+        pre = h3.find_next('pre')
+        if pre:
+            content = pre.get_text('\n', strip=True)
+            if content:
+                io_entries.append((label, content))
 
-    # If no samples found via h3, try English-only layout
+    samples = []
+    i = 0
+    while i + 1 < len(io_entries):
+        label_i, content_i = io_entries[i]
+        label_j, content_j = io_entries[i + 1]
+        is_input = any(kw in label_i for kw in
+                       ('入力例', 'input', 'sample input'))
+        is_output = any(kw in label_j for kw in
+                        ('出力例', 'output', 'sample output'))
+        if is_input and is_output:
+            samples.append((content_i, content_j))
+            i += 2
+        elif is_input and not is_output:
+            # input followed by another input — use next-next as output
+            if i + 2 < len(io_entries):
+                _, content_k = io_entries[i + 2]
+                is_out_k = any(kw in io_entries[i + 2][0] for kw in
+                               ('出力例', 'output', 'sample output'))
+                if is_out_k:
+                    samples.append((content_i, content_k))
+                    i += 3
+                else:
+                    i += 1
+            else:
+                i += 1
+        else:
+            i += 1
+
+    # fallback: pair all consecutive <pre> tags
     if not samples:
-        pre_tags = soup.find_all('pre')
-        io_pairs = []
-        for pre in pre_tags:
-            text = pre.get_text('\n', strip=True)
-            if text:
-                io_pairs.append(text)
-        # pair them up (input, output, input, output, ...)
-        for i in range(0, len(io_pairs) - 1, 2):
-            samples.append((io_pairs[i], io_pairs[i + 1]))
+        pre_tags = [p.get_text('\n', strip=True) for p in
+                    soup.find_all('pre') if p.get_text(strip=True)]
+        for j in range(0, len(pre_tags) - 1, 2):
+            samples.append((pre_tags[j], pre_tags[j + 1]))
 
     return {
         'title': title,
@@ -155,7 +168,7 @@ def fetch_and_save_at(contest_id: str, problem_index: str):
 def _parse_time(text):
     """Extract seconds from AtCoder time limit, e.g. '2 sec' -> 2."""
     match = re.search(r'(\d+(?:\.\d+)?)', text)
-    return int(float(match.group(1)) * 1000) if match else 2000  # default 2s
+    return int(float(match.group(1))) if match else 2
 
 
 def _parse_memory(text):

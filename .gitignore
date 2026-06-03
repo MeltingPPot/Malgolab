@@ -36,4 +36,8 @@ Thumbs.db
 *.tmp
 *.temp
 
+# 包构建产物
 *.egg-info/
+
+# 配置文件（本地编辑器路径等敏感信息不应提交）
+.malgolab.json
