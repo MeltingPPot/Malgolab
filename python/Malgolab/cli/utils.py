@@ -20,43 +20,81 @@ STATUS_COLORS = {
 }
 
 
+def _find_vscode() -> str | None:
+    """Try to locate a VS Code executable (Windows only)."""
+    if not sys.platform.startswith('win'):
+        return None
+
+    # 1. check running VS Code process
+    try:
+        import subprocess as _sp
+        result = _sp.run(
+            ['powershell', '-NoProfile', '-Command',
+             "(Get-Process -Name 'Code' -ErrorAction SilentlyContinue "
+             "| Select-Object -First 1 -ExpandProperty Path)"],
+            capture_output=True, text=True, timeout=5)
+        proc_path = result.stdout.strip()
+        if proc_path and os.path.isfile(proc_path):
+            return proc_path
+    except Exception:
+        pass
+
+    # 2. check common install locations
+    candidates = [
+        os.path.expandvars(
+            r'%LOCALAPPDATA%\Programs\Microsoft VS Code\bin\code.cmd'),
+        os.path.expandvars(
+            r'%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe'),
+        r'C:\Program Files\Microsoft VS Code\bin\code.cmd',
+        r'C:\Program Files\Microsoft VS Code\Code.exe',
+    ]
+    for c in candidates:
+        if os.path.isfile(c):
+            return c
+    return None
+
+
 def open_file(path: Path, editor: str = "") -> None:
     """Open a file with a specific editor, or the system default.
 
-    If editor is given (e.g. 'code', 'vim'), it is launched with the file
-    path as argument.  Otherwise the OS default handler is used.
-
-    Raises RuntimeError if no application can be found.
+    If editor is given (e.g. 'code'), it is launched with the file path
+    as argument.  If the editor cannot be found, tries to auto-detect
+    VS Code, then falls back to the OS default handler.
     """
     path_str = str(path)
+
+    def _try_launch(cmd: str) -> bool:
+        try:
+            subprocess.run([cmd, path_str], check=True)
+            return True
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            return False
+
     if editor:
-        _launch_editor(editor, path_str)
+        if _try_launch(editor):
+            return
+        import click
+        click.echo(
+            f"Note: editor '{editor}' not available, "
+            f"trying VS Code...", err=True)
+
+    # auto-detect VS Code
+    vscode = _find_vscode()
+    if vscode and _try_launch(vscode):
         return
+
+    # fallback to OS default
     if sys.platform.startswith('win'):
         try:
             os.startfile(path_str)
         except OSError:
             raise RuntimeError(
-                f"No default application found for '{path_str}'. "
-                "Set editor via MALGOLAB_EDITOR env var or .malgolab.json, "
-                "e.g.:  $env:MALGOLAB_EDITOR='code'")
+                f"Cannot open '{path_str}'. "
+                "Install VS Code or associate .cpp with an editor in Windows.")
     elif sys.platform.startswith('darwin'):
         subprocess.run(['open', path_str], check=True)
     else:
         subprocess.run(['xdg-open', path_str], check=True)
-
-
-def _launch_editor(editor_cmd: str, file_path: str) -> None:
-    """Launch an external editor command with the given file."""
-    try:
-        subprocess.run([editor_cmd, file_path], check=True)
-    except FileNotFoundError:
-        raise RuntimeError(
-            f"Editor command not found: '{editor_cmd}'. "
-            "Check MALGOLAB_EDITOR or the 'editor' key in .malgolab.json.")
-    except subprocess.CalledProcessError as exc:
-        raise RuntimeError(
-            f"Editor exited with error: {exc}")
 
 
 def parse_cf_pid(pid: str):
