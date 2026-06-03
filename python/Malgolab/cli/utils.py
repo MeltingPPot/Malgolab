@@ -20,24 +20,43 @@ STATUS_COLORS = {
 }
 
 
-def open_file(path: Path) -> None:
-    """Open a file with the default system application.
+def open_file(path: Path, editor: str = "") -> None:
+    """Open a file with a specific editor, or the system default.
 
-    Returns silently if no application is associated with the file type.
+    If editor is given (e.g. 'code', 'vim'), it is launched with the file
+    path as argument.  Otherwise the OS default handler is used.
+
+    Raises RuntimeError if no application can be found.
     """
-    path = str(path)
+    path_str = str(path)
+    if editor:
+        _launch_editor(editor, path_str)
+        return
     if sys.platform.startswith('win'):
         try:
-            os.startfile(path)
+            os.startfile(path_str)
         except OSError:
-            # No application associated with this file type on Windows
             raise RuntimeError(
-                f"No default application found for '{path}'. "
-                "Install a C++ editor (e.g. VS Code) or use --no-open.")
+                f"No default application found for '{path_str}'. "
+                "Set editor via MALGOLAB_EDITOR env var or .malgolab.json, "
+                "e.g.:  $env:MALGOLAB_EDITOR='code'")
     elif sys.platform.startswith('darwin'):
-        subprocess.run(['open', path], check=True)
+        subprocess.run(['open', path_str], check=True)
     else:
-        subprocess.run(['xdg-open', path], check=True)
+        subprocess.run(['xdg-open', path_str], check=True)
+
+
+def _launch_editor(editor_cmd: str, file_path: str) -> None:
+    """Launch an external editor command with the given file."""
+    try:
+        subprocess.run([editor_cmd, file_path], check=True)
+    except FileNotFoundError:
+        raise RuntimeError(
+            f"Editor command not found: '{editor_cmd}'. "
+            "Check MALGOLAB_EDITOR or the 'editor' key in .malgolab.json.")
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            f"Editor exited with error: {exc}")
 
 
 def parse_cf_pid(pid: str):

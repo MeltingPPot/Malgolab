@@ -78,9 +78,10 @@ def init(oj, pid, template, no_db, no_open, brute):
         click.echo(f"Notes file    : {target_dir / 'notes.md'}")
 
         if not no_open:
+            from ...config import get_config
             sol_file = solution_file(oj, pid, 'sol.cpp')
             try:
-                open_file(sol_file)
+                open_file(sol_file, editor=get_config().get('editor', ''))
                 click.echo("Opened solution file.")
             except Exception as exc:
                 click.echo(
