@@ -21,14 +21,23 @@ STATUS_COLORS = {
 
 
 def open_file(path: Path) -> None:
-    """Open a file with the default system application."""
+    """Open a file with the default system application.
+
+    Returns silently if no application is associated with the file type.
+    """
     path = str(path)
     if sys.platform.startswith('win'):
-        os.startfile(path)
+        try:
+            os.startfile(path)
+        except OSError:
+            # No application associated with this file type on Windows
+            raise RuntimeError(
+                f"No default application found for '{path}'. "
+                "Install a C++ editor (e.g. VS Code) or use --no-open.")
     elif sys.platform.startswith('darwin'):
-        subprocess.run(['open', path])
+        subprocess.run(['open', path], check=True)
     else:
-        subprocess.run(['xdg-open', path])
+        subprocess.run(['xdg-open', path], check=True)
 
 
 def parse_cf_pid(pid: str):

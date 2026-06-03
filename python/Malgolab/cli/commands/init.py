@@ -83,6 +83,9 @@ def init(oj, pid, template, no_db, no_open, brute):
                 open_file(sol_file)
                 click.echo("Opened solution file.")
             except Exception as exc:
-                click.echo(f"Warning: could not open file: {exc}", err=True)
+                click.echo(
+                    f"Tip: {exc}\n"
+                    f"  Use 'malgolab edit {oj} {pid}' to open it later, "
+                    f"or '--no-open' to skip.", err=True)
     except Exception as exc:
         click.echo(f"Error: {exc}", err=True)
